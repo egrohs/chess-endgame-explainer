@@ -138,24 +138,22 @@ with col_metrics:
     st.info("💡 **Efeito Borboleta:** Mover o Rei para d1 altera o resultado de GANHO para EMPATE.")
 
 with col_moves:
-    st.markdown("#### Lances Disponíveis")
+    st.markdown("#### Lances Disponíveis (Clique na linha)")
     lances_dict = {board.san(m): m for m in board.legal_moves}
     
-    # Alinha a caixa de seleção de lances junto ao botão na mesma linha
-    c_sel, c_btn = st.columns([3, 1])
-    with c_sel:
-        lance_selecionado = st.selectbox(
-            "Lance Interativo", 
-            options=[""] + list(lances_dict.keys()), 
-            format_func=lambda x: "Selecione um lance..." if x == "" else x,
-            label_visibility="collapsed"
-        )
-    with c_btn:
-        if st.button("Jogar", type="primary", use_container_width=True):
-            if lance_selecionado:
-                board.push(lances_dict[lance_selecionado])
-                st.session_state.fen = board.fen()
-                st.rerun()
-                
-    # Trava a altura do dataframe para evitar que ele estique a coluna até o fim da página
-    st.dataframe(dados_tabela, height=250, use_container_width=True)
+    # Tabela interativa com seleção de linha
+    event = st.dataframe(
+        dados_tabela, 
+        height=250, 
+        use_container_width=True,
+        on_select="rerun",
+        selection_mode="single-row"
+    )
+    
+    # Processa o clique na tabela e engatilha a jogada
+    if hasattr(event, "selection") and event.selection.rows:
+        selected_idx = event.selection.rows[0]
+        lance_san = dados_tabela[selected_idx]["Lance"]
+        board.push(lances_dict[lance_san])
+        st.session_state.fen = board.fen()
+        st.rerun()
