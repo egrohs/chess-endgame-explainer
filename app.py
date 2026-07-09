@@ -5,6 +5,14 @@ import streamlit as st
 import requests
 
 st.set_page_config(layout="wide")
+
+# Reduzir o espaço vazio no topo injetando CSS globalmente
+st.markdown("""
+    <style>
+        .block-container { padding-top: 1rem; }
+    </style>
+""", unsafe_allow_html=True)
+
 st.title("♟️ Analisador de Finais Espaciais")
 
 # 1. Inicializa a posição (Exemplo: Final de Reis e Peão)
@@ -80,6 +88,8 @@ for move in board.legal_moves:
 
 mostrar_pv = st.sidebar.toggle("Mostrar linha PV (Stockfish)", value=True)
 svg_texts = []
+pv_string_display = ""
+
 if mostrar_pv:
     try:
         with chess.engine.SimpleEngine.popen_uci("stockfish") as engine:
@@ -87,10 +97,12 @@ if mostrar_pv:
             info = engine.analyse(board, chess.engine.Limit(depth=15, time=0.5))
             if "pv" in info:
                 temp_board = board.copy()
+                pv_lances = []
                 for i, pv_move in enumerate(info["pv"][:10], start=1):
                     san_move = temp_board.san(pv_move)
                     temp_board.push(pv_move)
                     texto_lance = f"{i}. {san_move}"
+                    pv_lances.append(texto_lance)
                     
                     setas_analiticas.append(chess.svg.Arrow(pv_move.from_square, pv_move.to_square, color="#9b59b6aa")) # Roxo translúcido
                     
@@ -104,6 +116,7 @@ if mostrar_pv:
                     largura_rect = len(texto_lance) * 6 + 10
                     svg_texts.append(f'<rect x="{x - largura_rect/2}" y="{y - 9}" width="{largura_rect}" height="18" rx="4" fill="white" stroke="#9b59b6" stroke-width="1.5"/>')
                     svg_texts.append(f'<text x="{x}" y="{y+1}" font-size="10" font-weight="bold" fill="#9b59b6" text-anchor="middle" dominant-baseline="central" font-family="sans-serif">{texto_lance}</text>')
+                pv_string_display = " ".join(pv_lances)
     except FileNotFoundError:
         st.sidebar.warning("⚠️ Executável 'stockfish' não encontrado. Certifique-se de que ele está instalado e no seu PATH.")
 
@@ -112,7 +125,7 @@ board_svg = chess.svg.board(
     board=board,
     arrows=setas_analiticas,
     fill=dict.fromkeys(casas_destacadas, "#f39c1255"),
-    size=360, # Reduzido para caber sem scroll vertical
+    size=550, # Aumentado para preencher a nova coluna expandida de 50%
 )
 
 # Injeta estilo CSS (para afinar as setas roxas) e as bolinhas antes de fechar o SVG gerado
@@ -121,10 +134,11 @@ if svg_texts:
     board_svg = board_svg.replace('</svg>', css_setas + '\n' + '\n'.join(svg_texts) + '\n</svg>')
 
 # 2. Configurando o Novo Layout Otimizado em 3 Colunas
-col_board, col_metrics, col_moves = st.columns([1.1, 1.4, 1.5])
+col_board, col_metrics, col_moves = st.columns([2, 1, 1]) # Tabuleiro passa a ocupar 50% da tela e o restante divide o restante
 
 with col_board:
-    st.markdown("#### Tabuleiro")
+    cor_vez = "⚪ Brancas" if board.turn == chess.WHITE else "⚫ Pretas"
+    st.markdown(f"#### Tabuleiro (Vez das {cor_vez})")
     
     # Botões de navegação do histórico de lances
     c_prev, c_next = st.columns(2)
@@ -138,6 +152,10 @@ with col_board:
             st.session_state.history_idx += 1
             st.session_state.fen = st.session_state.history[st.session_state.history_idx]
             st.rerun()
+            
+    # Exibe a linha de melhores lances do Stockfish em formato texto
+    if pv_string_display:
+        st.info(f"**Linha de Melhores Lances (PV):** {pv_string_display}")
 
     st.write(board_svg, unsafe_allow_html=True)
     nova_fen = st.text_input("Modificar posição (FEN):", st.session_state.fen)
@@ -207,7 +225,7 @@ with col_moves:
     # Tabela interativa com seleção de linha
     event = st.dataframe(
         dados_tabela, 
-        height=250, 
+        height=620, # Expandido para ocupar o máximo de espaço vertical na coluna de lances
         use_container_width=True,
         on_select="rerun",
         selection_mode="single-row"
