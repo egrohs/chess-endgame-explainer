@@ -21,7 +21,8 @@ with col1:
     # Consulta a API pública do Lichess que provê dados da Syzygy gratuitamente
     @st.cache_data
     def obter_dados_syzygy(fen):
-        url = f"http://tablebase.lichess.ovh/standard?fen={fen}"
+        # A API do Lichess lida melhor com a FEN se trocarmos espaços por underscores
+        url = f"http://tablebase.lichess.ovh/standard?fen={fen.replace(' ', '_')}"
         try:
             resposta = requests.get(url, timeout=5)
             resposta.raise_for_status()
@@ -50,14 +51,17 @@ with col1:
 
         if lance_uci in lances_avaliados:
             dados = lances_avaliados[lance_uci]
-            wdl = dados.get("wdl", 0)
-            dtz = str(dados.get("dtz", 0))
+            
+            # A API do Lichess retorna um campo 'category' explícito (win, draw, loss)
+            # que já está na perspectiva correta do lance realizado, evitando confusões.
+            categoria = dados.get("category", "unknown")
+            dtz = str(abs(dados.get("dtz", 0)))
 
-            if wdl > 0:
+            if categoria in ["win", "cursed"]:  # cursed = ganho, mas empata pela regra dos 50 lances
                 status, cor, acao = "Ganho", "#27ae60", "Seta Verde"
-            elif wdl < 0:
+            elif categoria in ["loss", "blessed"]: # blessed = derrota, mas salva pela regra dos 50 lances
                 status, cor, acao = "Derrota", "#c0392b", "Seta Vermelha"
-            else:
+            elif categoria == "draw":
                 status, cor, acao = "Empate", "#7f8c8d", "Seta Cinza"
 
         # Adiciona a seta colorida de acordo com a avaliação real do lance
