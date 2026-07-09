@@ -1,6 +1,7 @@
 import chess
 import chess.svg
 import streamlit as st
+import requests
 
 st.set_page_config(layout="wide")
 st.title("♟️ Analisador de Finais Espaciais")
@@ -17,6 +18,21 @@ col1, col2 = st.columns([2, 1])
 with col1:
     st.subheader("Visualização Teórica do Tabuleiro")
 
+    # Consulta a API pública do Lichess que provê dados da Syzygy gratuitamente
+    @st.cache_data
+    def obter_dados_syzygy(fen):
+        url = f"http://tablebase.lichess.ovh/standard?fen={fen}"
+        try:
+            resposta = requests.get(url, timeout=5)
+            resposta.raise_for_status()
+            return resposta.json()
+        except:
+            return None
+
+    dados_syzygy = obter_dados_syzygy(board.fen())
+    # Cria um dicionário rápido indexado pelo UCI do lance (ex: 'e1d1')
+    lances_avaliados = {m["uci"]: m for m in dados_syzygy["moves"]} if dados_syzygy else {}
+
     # 2. Configura as setas dinâmicas e marcações de quadrados
     setas_analiticas = []
     dados_tabela = []
@@ -24,16 +40,35 @@ with col1:
     # Calcula os lances legais da posição dinamicamente
     for move in board.legal_moves:
         lance_san = board.san(move)
+        lance_uci = move.uci()
         
-        # Adiciona a seta azul para cada lance legal (cor genérica por enquanto)
-        setas_analiticas.append(chess.svg.Arrow(move.from_square, move.to_square, color="#3498db"))
+        # Valores padrão
+        status = "A calcular..."
+        dtz = "?"
+        cor = "#3498db" # Azul
+        acao = "Seta Azul"
+
+        if lance_uci in lances_avaliados:
+            dados = lances_avaliados[lance_uci]
+            wdl = dados.get("wdl", 0)
+            dtz = str(dados.get("dtz", 0))
+
+            if wdl > 0:
+                status, cor, acao = "Ganho", "#27ae60", "Seta Verde"
+            elif wdl < 0:
+                status, cor, acao = "Derrota", "#c0392b", "Seta Vermelha"
+            else:
+                status, cor, acao = "Empate", "#7f8c8d", "Seta Cinza"
+
+        # Adiciona a seta colorida de acordo com a avaliação real do lance
+        setas_analiticas.append(chess.svg.Arrow(move.from_square, move.to_square, color=cor))
         
         # Prepara os dados do lance para exibir na tabela
         dados_tabela.append({
             "Lance": lance_san,
-            "Status": "A calcular...", # Status real virá da Syzygy tablebase futuramente
-            "DTZ": "?",
-            "Ação": "Seta Azul",
+            "Status": status,
+            "DTZ": dtz,
+            "Ação": acao,
         })
 
     # Destacar casas críticas (ex: casas de empate ou oposição)
