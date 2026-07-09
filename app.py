@@ -219,6 +219,48 @@ def calcular_casas_bloqueadas(board):
     oponente = not board.turn
     return [sq for sq in chess.SQUARES if board.is_attacked_by(oponente, sq)]
 
+def calcular_casas_chave(board):
+    casas_chave = set()
+    
+    for color in [chess.WHITE, chess.BLACK]:
+        for sq in board.pieces(chess.PAWN, color):
+            f = chess.square_file(sq)
+            r = chess.square_rank(sq)
+            
+            direcao = 1 if color == chess.WHITE else -1
+            
+            is_blocked = False
+            sq_frente = sq + 8 * direcao
+            if 0 <= sq_frente <= 63 and board.piece_at(sq_frente):
+                is_blocked = True
+                
+            if is_blocked:
+                # 3 horizontais logo atrás dele
+                r_atras = r - direcao
+                if 0 <= r_atras <= 7:
+                    for df in [-1, 0, 1]:
+                        if 0 <= f + df <= 7:
+                            casas_chave.add(chess.square(f + df, r_atras))
+                            
+                # 3 casas horizontais de cada lado do peão
+                for df in [-3, -2, -1, 1, 2, 3]:
+                    if 0 <= f + df <= 7:
+                        casas_chave.add(chess.square(f + df, r))
+            else:
+                # Peão avançando: Casas críticas
+                if color == chess.WHITE:
+                    ranks_chave = [r + 2] if r <= 3 else [r + 1]
+                else:
+                    ranks_chave = [r - 2] if r >= 4 else [r - 1]
+                    
+                for rc in ranks_chave:
+                    if 0 <= rc <= 7:
+                        for df in [-1, 0, 1]:
+                            if 0 <= f + df <= 7:
+                                casas_chave.add(chess.square(f + df, rc))
+                                
+    return casas_chave
+
 dados_syzygy = obter_dados_syzygy(board.fen())
 lances_avaliados = {m["uci"]: m for m in dados_syzygy["moves"]} if dados_syzygy else {}
 
@@ -227,6 +269,7 @@ mostrar_pv = st.sidebar.toggle("Mostrar linha PV (Stockfish)", value=True)
 mostrar_regra_quadrado = st.sidebar.toggle("Mostrar Regra do Quadrado", value=False)
 mostrar_oposicao = st.sidebar.toggle("Mostrar Oposição dos Reis", value=False)
 mostrar_casas_bloqueadas = st.sidebar.toggle("Mostrar Casas Bloqueadas", value=False)
+mostrar_casas_chave = st.sidebar.toggle("Mostrar Casas Chave", value=False)
 
 setas_analiticas = []
 dados_tabela = []
@@ -317,6 +360,15 @@ if mostrar_casas_bloqueadas:
         size = 12
         svg_texts.append(f'<line x1="{x - size}" y1="{y - size}" x2="{x + size}" y2="{y + size}" stroke="#e74c3c" stroke-width="3.5" stroke-linecap="round"/>')
         svg_texts.append(f'<line x1="{x - size}" y1="{y + size}" x2="{x + size}" y2="{y - size}" stroke="#e74c3c" stroke-width="3.5" stroke-linecap="round"/>')
+
+if mostrar_casas_chave:
+    casas_chave = calcular_casas_chave(board)
+    for sq in casas_chave:
+        file = chess.square_file(sq)
+        rank = chess.square_rank(sq)
+        x = 15 + file * 45 + 22.5
+        y = 15 + (7 - rank) * 45 + 22.5
+        svg_texts.append(f'<circle cx="{x}" cy="{y}" r="14" fill="#2ecc7199" stroke="white" stroke-width="1.5"/>')
 
 board_svg = chess.svg.board(
     board=board,
