@@ -46,6 +46,7 @@ with col1:
         # Valores padrão
         status = "A calcular..."
         dtz = "?"
+        dtm = "?"
         cor = "#3498db" # Azul
         acao = "Seta Azul"
 
@@ -55,7 +56,12 @@ with col1:
             # A API do Lichess retorna um campo 'category' explícito (win, draw, loss)
             # que já está na perspectiva correta do lance realizado, evitando confusões.
             categoria = dados.get("category", "unknown")
-            dtz = str(abs(dados.get("dtz", 0)))
+            
+            dtz_val = dados.get("dtz")
+            dtz = str(abs(dtz_val)) if dtz_val is not None else "-"
+            
+            dtm_val = dados.get("dtm")
+            dtm = str(abs(dtm_val)) if dtm_val is not None else "-"
 
             # A avaliação ('category') na lista de lances é dada na perspectiva do OPONENTE (que fará o próximo lance).
             # Logo, se o oponente recebe um "loss" (derrota), significa que o nosso lance nos garante a vitória ("Ganho").
@@ -74,6 +80,7 @@ with col1:
             "Lance": lance_san,
             "Status": status,
             "DTZ": dtz,
+            "DTM": dtm,
             "Ação": acao,
         })
 
