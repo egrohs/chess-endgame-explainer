@@ -381,7 +381,7 @@ board_svg = chess.svg.board(
 
 # Injeta estilo CSS (para afinar as setas roxas) e as bolinhas antes de fechar o SVG gerado
 if svg_texts:
-    css_setas = '<style>path[stroke="#9b59b6aa"], line[stroke="#9b59b6aa"] { stroke-width: 6 !important; }</style>'
+    css_setas = '<style>path[stroke="#9b59b6aa"], line[stroke="#9b59b6aa"] { stroke-width: 5 !important; } polygon[fill="#9b59b6aa"] { transform: scale(0.45); transform-origin: center; transform-box: fill-box; }</style>'
     board_svg = board_svg.replace('</svg>', css_setas + '\n' + '\n'.join(svg_texts) + '\n</svg>')
 
 # 2. Configurando o Novo Layout Otimizado em 3 Colunas
