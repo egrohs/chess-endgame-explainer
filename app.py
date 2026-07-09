@@ -179,6 +179,26 @@ with col2:
     st.write("### Lances Disponíveis:")
     st.dataframe(dados_tabela)
 
+    st.divider()
+
+    st.write("### 🎮 Fazer um Lance Interativo")
+    # Mapeia os lances legais para a notação algébrica clássica (SAN)
+    lances_dict = {board.san(m): m for m in board.legal_moves}
+    
+    # Selectbox nativo do Streamlit para escolher o lance
+    lance_selecionado = st.selectbox(
+        "Escolha o lance que deseja jogar no tabuleiro:", 
+        options=[""] + list(lances_dict.keys()), 
+        format_func=lambda x: "Selecione um lance..." if x == "" else x
+    )
+    
+    if st.button("Jogar Lance", type="primary"):
+        if lance_selecionado:
+            board.push(lances_dict[lance_selecionado])
+            # Atualiza a FEN global da sessão e força o recarregamento (rerun)
+            st.session_state.fen = board.fen()
+            st.rerun()
+
     # Input para o usuário testar novas FENs
     nova_fen = st.text_input("Modificar posição (Insira uma FEN):", st.session_state.fen)
     if nova_fen != st.session_state.fen:
