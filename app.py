@@ -214,6 +214,11 @@ def calcular_oposicao(board):
                     
     return pares_w, pares_b
 
+def calcular_casas_bloqueadas(board):
+    # O oponente é a cor contrária à cor do turno atual
+    oponente = not board.turn
+    return [sq for sq in chess.SQUARES if board.is_attacked_by(oponente, sq)]
+
 dados_syzygy = obter_dados_syzygy(board.fen())
 lances_avaliados = {m["uci"]: m for m in dados_syzygy["moves"]} if dados_syzygy else {}
 
@@ -247,6 +252,7 @@ for move in board.legal_moves:
 mostrar_pv = st.sidebar.toggle("Mostrar linha PV (Stockfish)", value=True)
 mostrar_regra_quadrado = st.sidebar.toggle("Mostrar Regra do Quadrado", value=False)
 mostrar_oposicao = st.sidebar.toggle("Mostrar Oposição dos Reis", value=False)
+mostrar_casas_bloqueadas = st.sidebar.toggle("Mostrar Casas Bloqueadas", value=False)
 svg_texts = []
 pv_string_display = ""
 
@@ -297,6 +303,17 @@ if mostrar_oposicao:
         
         svg_texts.append(f'<circle cx="{x}" cy="{y}" r="11" fill="#e67e22" stroke="white" stroke-width="1.5"/>')
         svg_texts.append(f'<text x="{x}" y="{y+1}" font-size="12" font-weight="bold" fill="white" text-anchor="middle" dominant-baseline="central" font-family="sans-serif">{texto}</text>')
+
+if mostrar_casas_bloqueadas:
+    casas_atacadas = calcular_casas_bloqueadas(board)
+    for sq in casas_atacadas:
+        file = chess.square_file(sq)
+        rank = chess.square_rank(sq)
+        x = 15 + file * 45 + 22.5
+        y = 15 + (7 - rank) * 45 + 22.5
+        size = 12
+        svg_texts.append(f'<line x1="{x - size}" y1="{y - size}" x2="{x + size}" y2="{y + size}" stroke="#e74c3c" stroke-width="3.5" stroke-linecap="round"/>')
+        svg_texts.append(f'<line x1="{x - size}" y1="{y + size}" x2="{x + size}" y2="{y - size}" stroke="#e74c3c" stroke-width="3.5" stroke-linecap="round"/>')
 
 board_svg = chess.svg.board(
     board=board,
