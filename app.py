@@ -180,6 +180,40 @@ def calcular_regra_quadrado(board):
                 
     return casas_quadrado, mensagens
 
+def calcular_oposicao(board):
+    pares_w = {}
+    pares_b = {}
+    
+    wk_sq = board.king(chess.WHITE)
+    bk_sq = board.king(chess.BLACK)
+    
+    if wk_sq is None or bk_sq is None:
+        return pares_w, pares_b
+        
+    # Filtra as casas adjacentes válidas considerando a restrição de distância entre Reis
+    w_adj = [sq for sq in chess.SQUARES if chess.square_distance(wk_sq, sq) == 1 and board.color_at(sq) != chess.WHITE and chess.square_distance(sq, bk_sq) > 1]
+    b_adj = [sq for sq in chess.SQUARES if chess.square_distance(bk_sq, sq) == 1 and board.color_at(sq) != chess.BLACK and chess.square_distance(sq, wk_sq) > 1]
+            
+    pair_id = 1
+    for w_sq in w_adj:
+        for b_sq in b_adj:
+            rf_w, rr_w = chess.square_file(w_sq), chess.square_rank(w_sq)
+            rf_b, rr_b = chess.square_file(b_sq), chess.square_rank(b_sq)
+            
+            dist_f = abs(rf_w - rf_b)
+            dist_r = abs(rr_w - rr_b)
+            
+            is_aligned = (dist_f == 0) or (dist_r == 0) or (dist_f == dist_r)
+            dist = max(dist_f, dist_r)
+            
+            if is_aligned and dist % 2 == 0 and dist > 1:
+                if w_sq not in pares_w and b_sq not in pares_b:
+                    pares_w[w_sq] = str(pair_id)
+                    pares_b[b_sq] = str(pair_id)
+                    pair_id += 1
+                    
+    return pares_w, pares_b
+
 dados_syzygy = obter_dados_syzygy(board.fen())
 lances_avaliados = {m["uci"]: m for m in dados_syzygy["moves"]} if dados_syzygy else {}
 
@@ -212,6 +246,7 @@ for move in board.legal_moves:
 
 mostrar_pv = st.sidebar.toggle("Mostrar linha PV (Stockfish)", value=True)
 mostrar_regra_quadrado = st.sidebar.toggle("Mostrar Regra do Quadrado", value=False)
+mostrar_oposicao = st.sidebar.toggle("Mostrar Oposição dos Reis", value=False)
 svg_texts = []
 pv_string_display = ""
 
@@ -250,6 +285,18 @@ mensagens_quadrado = []
 if mostrar_regra_quadrado:
     casas_quadrado, mensagens_quadrado = calcular_regra_quadrado(board)
     fill_dict = {sq: "#2ecc7155" for sq in casas_quadrado}  # Verde semitransparente
+
+if mostrar_oposicao:
+    pares_w, pares_b = calcular_oposicao(board)
+    todas_casas = {**pares_w, **pares_b}
+    for sq, texto in todas_casas.items():
+        file = chess.square_file(sq)
+        rank = chess.square_rank(sq)
+        x = 15 + file * 45 + 22.5
+        y = 15 + (7 - rank) * 45 + 22.5
+        
+        svg_texts.append(f'<circle cx="{x}" cy="{y}" r="11" fill="#e67e22" stroke="white" stroke-width="1.5"/>')
+        svg_texts.append(f'<text x="{x}" y="{y+1}" font-size="12" font-weight="bold" fill="white" text-anchor="middle" dominant-baseline="central" font-family="sans-serif">{texto}</text>')
 
 board_svg = chess.svg.board(
     board=board,
