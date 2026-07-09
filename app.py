@@ -57,9 +57,11 @@ with col1:
             categoria = dados.get("category", "unknown")
             dtz = str(abs(dados.get("dtz", 0)))
 
-            if categoria in ["win", "cursed"]:  # cursed = ganho, mas empata pela regra dos 50 lances
+            # A avaliação ('category') na lista de lances é dada na perspectiva do OPONENTE (que fará o próximo lance).
+            # Logo, se o oponente recebe um "loss" (derrota), significa que o nosso lance nos garante a vitória ("Ganho").
+            if categoria in ["loss", "blessed"]:
                 status, cor, acao = "Ganho", "#27ae60", "Seta Verde"
-            elif categoria in ["loss", "blessed"]: # blessed = derrota, mas salva pela regra dos 50 lances
+            elif categoria in ["win", "cursed"]:
                 status, cor, acao = "Derrota", "#c0392b", "Seta Vermelha"
             elif categoria == "draw":
                 status, cor, acao = "Empate", "#7f8c8d", "Seta Cinza"
