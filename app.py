@@ -18,17 +18,23 @@ with col1:
     st.subheader("Visualização Teórica do Tabuleiro")
 
     # 2. Configura as setas dinâmicas e marcações de quadrados
-    # No seu app real, as cores e lances virão das respostas da Tablebase (DTZ/WDL)
-    setas_analiticas = [
-        # Seta Verde (Melhor Lance - Ganha): ex: e2 para e4
-        chess.svg.Arrow(
-            chess.E2, chess.E4, color="#27ae60"
-        ),  # Verde Brilhante
-        # Seta Vermelha (Erro/Blunder - Perde): ex: e1 para d1
-        chess.svg.Arrow(
-            chess.E1, chess.D1, color="#c0392b"
-        ),  # Vermelho Alerta[cite: 1]
-    ]
+    setas_analiticas = []
+    dados_tabela = []
+
+    # Calcula os lances legais da posição dinamicamente
+    for move in board.legal_moves:
+        lance_san = board.san(move)
+        
+        # Adiciona a seta azul para cada lance legal (cor genérica por enquanto)
+        setas_analiticas.append(chess.svg.Arrow(move.from_square, move.to_square, color="#3498db"))
+        
+        # Prepara os dados do lance para exibir na tabela
+        dados_tabela.append({
+            "Lance": lance_san,
+            "Status": "A calcular...", # Status real virá da Syzygy tablebase futuramente
+            "DTZ": "?",
+            "Ação": "Seta Azul",
+        })
 
     # Destacar casas críticas (ex: casas de empate ou oposição)
     casas_destacadas = chess.SquareSet([chess.E3, chess.E5])
@@ -54,28 +60,7 @@ with col2:
 
     # Tabela simulando os dados calculados pelo backend
     st.write("### Lances Disponíveis:")
-    st.dataframe(
-        [
-            {
-                "Lance": "e4",
-                "Status": "Ganho",
-                "DTZ": "+18",
-                "Ação": "Seta Verde",
-            },  #[cite: 1]
-            {
-                "Lance": "Kd1",
-                "Status": "Empate",
-                "DTZ": "0",
-                "Ação": "Seta Cinza",
-            },  #[cite: 1]
-            {
-                "Lance": "Kf1",
-                "Status": "Derrota",
-                "DTZ": "-12",
-                "Ação": "Seta Vermelha",
-            },  #[cite: 1]
-        ]
-    )
+    st.dataframe(dados_tabela)
 
     # Input para o usuário testar novas FENs
     nova_fen = st.text_input("Modificar posição (Insira uma FEN):", st.session_state.fen)
