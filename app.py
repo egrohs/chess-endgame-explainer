@@ -222,6 +222,12 @@ def calcular_casas_bloqueadas(board):
 dados_syzygy = obter_dados_syzygy(board.fen())
 lances_avaliados = {m["uci"]: m for m in dados_syzygy["moves"]} if dados_syzygy else {}
 
+mostrar_setas = st.sidebar.toggle("Mostrar Setas de Lances", value=True)
+mostrar_pv = st.sidebar.toggle("Mostrar linha PV (Stockfish)", value=True)
+mostrar_regra_quadrado = st.sidebar.toggle("Mostrar Regra do Quadrado", value=False)
+mostrar_oposicao = st.sidebar.toggle("Mostrar Oposição dos Reis", value=False)
+mostrar_casas_bloqueadas = st.sidebar.toggle("Mostrar Casas Bloqueadas", value=False)
+
 setas_analiticas = []
 dados_tabela = []
 
@@ -246,13 +252,10 @@ for move in board.legal_moves:
         elif categoria == "draw":
             status, cor, acao = "Empate", "#7f8c8d", "Seta Cinza"
 
-    setas_analiticas.append(chess.svg.Arrow(move.from_square, move.to_square, color=cor))
+    if mostrar_setas:
+        setas_analiticas.append(chess.svg.Arrow(move.from_square, move.to_square, color=cor))
     dados_tabela.append({"Lance": lance_san, "Status": status, "DTZ": dtz, "DTM": dtm, "Ação": acao})
 
-mostrar_pv = st.sidebar.toggle("Mostrar linha PV (Stockfish)", value=True)
-mostrar_regra_quadrado = st.sidebar.toggle("Mostrar Regra do Quadrado", value=False)
-mostrar_oposicao = st.sidebar.toggle("Mostrar Oposição dos Reis", value=False)
-mostrar_casas_bloqueadas = st.sidebar.toggle("Mostrar Casas Bloqueadas", value=False)
 svg_texts = []
 pv_string_display = ""
 
