@@ -1,5 +1,6 @@
 import chess
 import chess.svg
+import chess.engine
 import streamlit as st
 import requests
 
@@ -68,6 +69,17 @@ for move in board.legal_moves:
 
     setas_analiticas.append(chess.svg.Arrow(move.from_square, move.to_square, color=cor))
     dados_tabela.append({"Lance": lance_san, "Status": status, "DTZ": dtz, "DTM": dtm, "Ação": acao})
+
+mostrar_pv = st.sidebar.toggle("Mostrar linha PV (Stockfish)", value=True)
+if mostrar_pv:
+    try:
+        with chess.engine.SimpleEngine.popen_uci("stockfish") as engine:
+            info = engine.analyse(board, chess.engine.Limit(time=0.1))
+            if "pv" in info:
+                for pv_move in info["pv"][:4]:  # Mostra a linha dos até 4 melhores lances
+                    setas_analiticas.append(chess.svg.Arrow(pv_move.from_square, pv_move.to_square, color="#9b59b6aa")) # Roxo translúcido
+    except FileNotFoundError:
+        st.sidebar.warning("⚠️ Executável 'stockfish' não encontrado. Certifique-se de que ele está instalado e no seu PATH.")
 
 casas_destacadas = chess.SquareSet([chess.E3, chess.E5])
 board_svg = chess.svg.board(
