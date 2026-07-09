@@ -220,7 +220,7 @@ def calcular_casas_bloqueadas(board):
     return [sq for sq in chess.SQUARES if board.is_attacked_by(oponente, sq)]
 
 def calcular_casas_chave(board):
-    casas_chave = set()
+    casas_chave = {}
     
     for color in [chess.WHITE, chess.BLACK]:
         for sq in board.pieces(chess.PAWN, color):
@@ -240,12 +240,12 @@ def calcular_casas_chave(board):
                 if 0 <= r_atras <= 7:
                     for df in [-1, 0, 1]:
                         if 0 <= f + df <= 7:
-                            casas_chave.add(chess.square(f + df, r_atras))
+                            casas_chave[chess.square(f + df, r_atras)] = color
                             
                 # 3 casas horizontais de cada lado do peão
                 for df in [-3, -2, -1, 1, 2, 3]:
                     if 0 <= f + df <= 7:
-                        casas_chave.add(chess.square(f + df, r))
+                        casas_chave[chess.square(f + df, r)] = color
             else:
                 # Peão avançando: Casas críticas
                 if color == chess.WHITE:
@@ -257,7 +257,7 @@ def calcular_casas_chave(board):
                     if 0 <= rc <= 7:
                         for df in [-1, 0, 1]:
                             if 0 <= f + df <= 7:
-                                casas_chave.add(chess.square(f + df, rc))
+                                casas_chave[chess.square(f + df, rc)] = color
                                 
     return casas_chave
 
@@ -363,12 +363,14 @@ if mostrar_casas_bloqueadas:
 
 if mostrar_casas_chave:
     casas_chave = calcular_casas_chave(board)
-    for sq in casas_chave:
+    for sq, p_color in casas_chave.items():
         file = chess.square_file(sq)
         rank = chess.square_rank(sq)
         x = 15 + file * 45 + 22.5
         y = 15 + (7 - rank) * 45 + 22.5
-        svg_texts.append(f'<circle cx="{x}" cy="{y}" r="14" fill="#2ecc7199" stroke="white" stroke-width="1.5"/>')
+        fill_color = "#ffffff99" if p_color == chess.WHITE else "#00000099"
+        stroke_color = "#333333" if p_color == chess.WHITE else "white"
+        svg_texts.append(f'<circle cx="{x}" cy="{y}" r="14" fill="{fill_color}" stroke="{stroke_color}" stroke-width="1.5"/>')
 
 board_svg = chess.svg.board(
     board=board,
