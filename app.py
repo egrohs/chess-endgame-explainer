@@ -11,6 +11,14 @@ st.title("♟️ Analisador de Finais Espaciais")
 if "fen" not in st.session_state:
     # Posição clássica de teste
     st.session_state.fen = "4k3/8/8/8/8/8/4P3/4K3 w - - 0 1"
+    st.session_state.history = [st.session_state.fen]
+    st.session_state.history_idx = 0
+
+def registrar_nova_fen(nova_fen):
+    st.session_state.fen = nova_fen
+    st.session_state.history = st.session_state.history[:st.session_state.history_idx + 1]
+    st.session_state.history.append(nova_fen)
+    st.session_state.history_idx += 1
 
 board = chess.Board(st.session_state.fen)
 
@@ -117,18 +125,31 @@ col_board, col_metrics, col_moves = st.columns([1.1, 1.4, 1.5])
 
 with col_board:
     st.markdown("#### Tabuleiro")
+    
+    # Botões de navegação do histórico de lances
+    c_prev, c_next = st.columns(2)
+    with c_prev:
+        if st.button("⬅️ Voltar Lance", use_container_width=True, disabled=st.session_state.history_idx == 0):
+            st.session_state.history_idx -= 1
+            st.session_state.fen = st.session_state.history[st.session_state.history_idx]
+            st.rerun()
+    with c_next:
+        if st.button("Avançar Lance ➡️", use_container_width=True, disabled=st.session_state.history_idx >= len(st.session_state.history) - 1):
+            st.session_state.history_idx += 1
+            st.session_state.fen = st.session_state.history[st.session_state.history_idx]
+            st.rerun()
+
     st.write(board_svg, unsafe_allow_html=True)
-    # Input da FEN agora fica compacto debaixo do tabuleiro
     nova_fen = st.text_input("Modificar posição (FEN):", st.session_state.fen)
     if nova_fen != st.session_state.fen:
-        st.session_state.fen = nova_fen
+        registrar_nova_fen(nova_fen)
         st.rerun()
 
     if st.button("Trocar a Vez (Brancas / Pretas)"):
         partes_fen = st.session_state.fen.split(" ")
         partes_fen[1] = "b" if partes_fen[1] == "w" else "w"
         partes_fen[3] = "-"  # Remove alvo de en-passant para evitar FEN inválida
-        st.session_state.fen = " ".join(partes_fen)
+        registrar_nova_fen(" ".join(partes_fen))
         st.rerun()
 
 with col_metrics:
@@ -197,5 +218,5 @@ with col_moves:
         selected_idx = event.selection.rows[0]
         lance_san = dados_tabela[selected_idx]["Lance"]
         board.push(lances_dict[lance_san])
-        st.session_state.fen = board.fen()
+        registrar_nova_fen(board.fen())
         st.rerun()
