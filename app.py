@@ -71,13 +71,25 @@ for move in board.legal_moves:
     dados_tabela.append({"Lance": lance_san, "Status": status, "DTZ": dtz, "DTM": dtm, "Ação": acao})
 
 mostrar_pv = st.sidebar.toggle("Mostrar linha PV (Stockfish)", value=True)
+svg_texts = []
 if mostrar_pv:
     try:
         with chess.engine.SimpleEngine.popen_uci("stockfish") as engine:
-            info = engine.analyse(board, chess.engine.Limit(time=0.1))
+            # Aumentamos o limite para garantir uma linha (PV) longa. Antes o tempo curto cortava em poucos lances.
+            info = engine.analyse(board, chess.engine.Limit(depth=15, time=0.5))
             if "pv" in info:
-                for pv_move in info["pv"][:4]:  # Mostra a linha dos até 4 melhores lances
+                for i, pv_move in enumerate(info["pv"][:10], start=1):
                     setas_analiticas.append(chess.svg.Arrow(pv_move.from_square, pv_move.to_square, color="#9b59b6aa")) # Roxo translúcido
+                    
+                    # Calcula as coordenadas cartesianas do centro da casa de destino (viewBox 390x390 do python-chess)
+                    file = chess.square_file(pv_move.to_square)
+                    rank = chess.square_rank(pv_move.to_square)
+                    x = 15 + file * 45 + 22.5
+                    y = 15 + (7 - rank) * 45 + 22.5
+                    
+                    # Cria as tags SVG para o número (bolinha branca + texto roxo)
+                    svg_texts.append(f'<circle cx="{x}" cy="{y}" r="8" fill="white" stroke="#9b59b6" stroke-width="1.5"/>')
+                    svg_texts.append(f'<text x="{x}" y="{y+1}" font-size="10" font-weight="bold" fill="#9b59b6" text-anchor="middle" dominant-baseline="central" font-family="sans-serif">{i}</text>')
     except FileNotFoundError:
         st.sidebar.warning("⚠️ Executável 'stockfish' não encontrado. Certifique-se de que ele está instalado e no seu PATH.")
 
@@ -88,6 +100,10 @@ board_svg = chess.svg.board(
     fill=dict.fromkeys(casas_destacadas, "#f39c1255"),
     size=360, # Reduzido para caber sem scroll vertical
 )
+
+# Injeta as bolinhas numeradas antes de fechar o código SVG gerado
+if svg_texts:
+    board_svg = board_svg.replace('</svg>', '\n'.join(svg_texts) + '\n</svg>')
 
 # 2. Configurando o Novo Layout Otimizado em 3 Colunas
 col_board, col_metrics, col_moves = st.columns([1.1, 1.4, 1.5])
