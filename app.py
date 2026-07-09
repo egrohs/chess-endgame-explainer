@@ -78,7 +78,12 @@ if mostrar_pv:
             # Aumentamos o limite para garantir uma linha (PV) longa. Antes o tempo curto cortava em poucos lances.
             info = engine.analyse(board, chess.engine.Limit(depth=15, time=0.5))
             if "pv" in info:
+                temp_board = board.copy()
                 for i, pv_move in enumerate(info["pv"][:10], start=1):
+                    san_move = temp_board.san(pv_move)
+                    temp_board.push(pv_move)
+                    texto_lance = f"{i}. {san_move}"
+                    
                     setas_analiticas.append(chess.svg.Arrow(pv_move.from_square, pv_move.to_square, color="#9b59b6aa")) # Roxo translúcido
                     
                     # Calcula as coordenadas cartesianas do centro da casa de destino (viewBox 390x390 do python-chess)
@@ -87,9 +92,10 @@ if mostrar_pv:
                     x = 15 + file * 45 + 22.5
                     y = 15 + (7 - rank) * 45 + 22.5
                     
-                    # Cria as tags SVG para o número (bolinha branca + texto roxo)
-                    svg_texts.append(f'<circle cx="{x}" cy="{y}" r="8" fill="white" stroke="#9b59b6" stroke-width="1.5"/>')
-                    svg_texts.append(f'<text x="{x}" y="{y+1}" font-size="10" font-weight="bold" fill="#9b59b6" text-anchor="middle" dominant-baseline="central" font-family="sans-serif">{i}</text>')
+                    # Cria as tags SVG para o número e notação (retângulo arredondado branco + texto roxo)
+                    largura_rect = len(texto_lance) * 6 + 10
+                    svg_texts.append(f'<rect x="{x - largura_rect/2}" y="{y - 9}" width="{largura_rect}" height="18" rx="4" fill="white" stroke="#9b59b6" stroke-width="1.5"/>')
+                    svg_texts.append(f'<text x="{x}" y="{y+1}" font-size="10" font-weight="bold" fill="#9b59b6" text-anchor="middle" dominant-baseline="central" font-family="sans-serif">{texto_lance}</text>')
     except FileNotFoundError:
         st.sidebar.warning("⚠️ Executável 'stockfish' não encontrado. Certifique-se de que ele está instalado e no seu PATH.")
 
@@ -116,6 +122,13 @@ with col_board:
     nova_fen = st.text_input("Modificar posição (FEN):", st.session_state.fen)
     if nova_fen != st.session_state.fen:
         st.session_state.fen = nova_fen
+        st.rerun()
+
+    if st.button("Trocar a Vez (Brancas / Pretas)"):
+        partes_fen = st.session_state.fen.split(" ")
+        partes_fen[1] = "b" if partes_fen[1] == "w" else "w"
+        partes_fen[3] = "-"  # Remove alvo de en-passant para evitar FEN inválida
+        st.session_state.fen = " ".join(partes_fen)
         st.rerun()
 
 with col_metrics:
