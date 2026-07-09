@@ -56,6 +56,130 @@ def classificar_final(board):
     
     return f"{str_w}v{str_b}", f"{str_b}v{str_w}"
 
+def calcular_regra_quadrado(board):
+    casas_quadrado = set()
+    mensagens = []
+    
+    for sq in board.pieces(chess.PAWN, chess.WHITE):
+        f, r = chess.square_file(sq), chess.square_rank(sq)
+        
+        # Identifica se é um peão passado
+        is_passed = True
+        for enemy_sq in board.pieces(chess.PAWN, chess.BLACK):
+            ef, er = chess.square_file(enemy_sq), chess.square_rank(enemy_sq)
+            if abs(f - ef) <= 1 and er > r:
+                is_passed = False
+                break
+                
+        if not is_passed:
+            continue
+            
+        # Ajuste de turnos e regra de 2 casas iniciais
+        eff_r = r
+        if board.turn == chess.WHITE:
+            if r == 1:
+                eff_r = 3 
+            else:
+                eff_r = r + 1
+        else:
+            if r == 1:
+                eff_r = 2 
+            else:
+                eff_r = r
+                
+        if eff_r > 7:
+            continue
+            
+        tamanho = 7 - eff_r + 1
+        rank_inicial = r if r == 1 else eff_r
+        ranks = range(rank_inicial, 8)
+        
+        enemy_king_sq = board.king(chess.BLACK)
+        enemy_k_f = chess.square_file(enemy_king_sq) if enemy_king_sq else f
+        
+        if enemy_k_f < f:
+            files = range(max(0, f - tamanho + 1), f + 1)
+        else:
+            files = range(f, min(8, f + tamanho))
+            
+        quadrado_atual = set()
+        for rr in ranks:
+            for ff in files:
+                quadrado_atual.add(chess.square(ff, rr))
+                
+        casas_quadrado.update(quadrado_atual)
+        
+        if enemy_king_sq is not None:
+            kr = chess.square_rank(enemy_king_sq)
+            kf = chess.square_file(enemy_king_sq)
+            dentro = (eff_r <= kr <= 7) and (kf in files)
+            
+            nome_casa = chess.square_name(sq)
+            if dentro:
+                mensagens.append(f"O Rei Preto **alcança** o peão branco em {nome_casa}.")
+            else:
+                mensagens.append(f"O Rei Preto **não alcança** o peão branco em {nome_casa}.")
+                
+    for sq in board.pieces(chess.PAWN, chess.BLACK):
+        f, r = chess.square_file(sq), chess.square_rank(sq)
+        
+        is_passed = True
+        for enemy_sq in board.pieces(chess.PAWN, chess.WHITE):
+            ef, er = chess.square_file(enemy_sq), chess.square_rank(enemy_sq)
+            if abs(f - ef) <= 1 and er < r:
+                is_passed = False
+                break
+                
+        if not is_passed:
+            continue
+            
+        eff_r = r
+        if board.turn == chess.BLACK:
+            if r == 6:
+                eff_r = 4
+            else:
+                eff_r = r - 1
+        else:
+            if r == 6:
+                eff_r = 5
+            else:
+                eff_r = r
+                
+        if eff_r < 0:
+            continue
+            
+        tamanho = eff_r + 1
+        rank_inicial = r if r == 6 else eff_r
+        ranks = range(0, rank_inicial + 1)
+        
+        enemy_king_sq = board.king(chess.WHITE)
+        enemy_k_f = chess.square_file(enemy_king_sq) if enemy_king_sq else f
+        
+        if enemy_k_f < f:
+            files = range(max(0, f - tamanho + 1), f + 1)
+        else:
+            files = range(f, min(8, f + tamanho))
+            
+        quadrado_atual = set()
+        for rr in ranks:
+            for ff in files:
+                quadrado_atual.add(chess.square(ff, rr))
+                
+        casas_quadrado.update(quadrado_atual)
+        
+        if enemy_king_sq is not None:
+            kr = chess.square_rank(enemy_king_sq)
+            kf = chess.square_file(enemy_king_sq)
+            dentro = (0 <= kr <= eff_r) and (kf in files)
+            
+            nome_casa = chess.square_name(sq)
+            if dentro:
+                mensagens.append(f"O Rei Branco **alcança** o peão preto em {nome_casa}.")
+            else:
+                mensagens.append(f"O Rei Branco **não alcança** o peão preto em {nome_casa}.")
+                
+    return casas_quadrado, mensagens
+
 dados_syzygy = obter_dados_syzygy(board.fen())
 lances_avaliados = {m["uci"]: m for m in dados_syzygy["moves"]} if dados_syzygy else {}
 
@@ -87,6 +211,7 @@ for move in board.legal_moves:
     dados_tabela.append({"Lance": lance_san, "Status": status, "DTZ": dtz, "DTM": dtm, "Ação": acao})
 
 mostrar_pv = st.sidebar.toggle("Mostrar linha PV (Stockfish)", value=True)
+mostrar_regra_quadrado = st.sidebar.toggle("Mostrar Regra do Quadrado", value=False)
 svg_texts = []
 pv_string_display = ""
 
@@ -120,11 +245,16 @@ if mostrar_pv:
     except FileNotFoundError:
         st.sidebar.warning("⚠️ Executável 'stockfish' não encontrado. Certifique-se de que ele está instalado e no seu PATH.")
 
-casas_destacadas = chess.SquareSet([chess.E3, chess.E5])
+fill_dict = {}
+mensagens_quadrado = []
+if mostrar_regra_quadrado:
+    casas_quadrado, mensagens_quadrado = calcular_regra_quadrado(board)
+    fill_dict = {sq: "#2ecc7155" for sq in casas_quadrado}  # Verde semitransparente
+
 board_svg = chess.svg.board(
     board=board,
     arrows=setas_analiticas,
-    fill=dict.fromkeys(casas_destacadas, "#f39c1255"),
+    fill=fill_dict,
     size=550, # Aumentado para preencher a nova coluna expandida de 50%
 )
 
@@ -156,6 +286,13 @@ with col_board:
     # Exibe a linha de melhores lances do Stockfish em formato texto
     if pv_string_display:
         st.info(f"**Linha de Melhores Lances (PV):** {pv_string_display}")
+
+    if mostrar_regra_quadrado and mensagens_quadrado:
+        for msg in mensagens_quadrado:
+            if "não alcança" in msg:
+                st.success(f"🏃 {msg}")
+            else:
+                st.warning(f"🚨 {msg}")
 
     st.write(board_svg, unsafe_allow_html=True)
     nova_fen = st.text_input("Modificar posição (FEN):", st.session_state.fen)
