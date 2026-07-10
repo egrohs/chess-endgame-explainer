@@ -310,6 +310,7 @@ if mostrar_pv:
             if "pv" in info:
                 temp_board = board.copy()
                 pv_lances = []
+                square_labels_count = {}
                 for i, pv_move in enumerate(info["pv"][:10], start=1):
                     san_move = temp_board.san(pv_move)
                     temp_board.push(pv_move)
@@ -318,16 +319,17 @@ if mostrar_pv:
                     
                     setas_analiticas.append(chess.svg.Arrow(pv_move.from_square, pv_move.to_square, color="#9b59b6aa")) # Roxo translúcido
                     
+                    count = square_labels_count.get(pv_move.to_square, 0)
+                    square_labels_count[pv_move.to_square] = count + 1
+                    
                     # Calcula as coordenadas cartesianas do centro da casa de destino (viewBox 390x390 do python-chess)
                     file = chess.square_file(pv_move.to_square)
                     rank = chess.square_rank(pv_move.to_square)
                     x = 15 + file * 45 + 22.5
-                    y = 15 + (7 - rank) * 45 + 22.5
+                    y = 15 + (7 - rank) * 45 + 22.5 + (count * 20)
                     
-                    # Cria as tags SVG para o número e notação (retângulo arredondado branco + texto roxo)
-                    largura_rect = len(texto_lance) * 6 + 10
-                    svg_texts.append(f'<rect x="{x - largura_rect/2}" y="{y - 9}" width="{largura_rect}" height="18" rx="4" fill="white" stroke="#9b59b6" stroke-width="1.5"/>')
-                    svg_texts.append(f'<text x="{x}" y="{y+1}" font-size="10" font-weight="bold" fill="#9b59b6" text-anchor="middle" dominant-baseline="central" font-family="sans-serif">{texto_lance}</text>')
+                    # Cria as tags SVG para o número e notação (texto roxo com contorno branco para leitura nítida)
+                    svg_texts.append(f'<text x="{x}" y="{y+1}" font-size="11" font-weight="bold" fill="#9b59b6" stroke="white" stroke-width="2" paint-order="stroke" text-anchor="middle" dominant-baseline="central" font-family="sans-serif">{texto_lance}</text>')
                 pv_string_display = " ".join(pv_lances)
     except FileNotFoundError:
         st.sidebar.warning("⚠️ Executável 'stockfish' não encontrado. Certifique-se de que ele está instalado e no seu PATH.")
