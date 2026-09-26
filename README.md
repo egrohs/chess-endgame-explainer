@@ -1,0 +1,144 @@
+# Analisador de Finais Espaciais
+
+Aplicação web construída com Streamlit para estudar posições de finais de xadrez. O
+projeto combina o tabuleiro interativo do `python-chess`, avaliações de tablebases
+Syzygy por meio da API pública do Lichess e uma linha de análise do Stockfish.
+
+## Funcionalidades
+
+- Exibição de uma posição de xadrez em SVG.
+- Inserção e alteração de posições usando FEN.
+- Navegação pelos lances com os botões de voltar e avançar.
+- Seleção de um lance diretamente na tabela de lances legais.
+- Avaliação de finais pela tablebase Syzygy, incluindo:
+  - resultado da posição;
+  - DTZ (Distance to Zeroing Move);
+  - DTM (Distance to Mate), quando disponível;
+  - classificação dos lances legais.
+- Linha principal de análise do Stockfish.
+- Indicadores visuais no tabuleiro:
+  - azul: lance legal ainda não avaliado pela tablebase;
+  - verde: lance que mantém ou produz uma posição vencedora;
+  - vermelho: lance que leva a uma posição perdida;
+  - cinza: lance que leva a empate;
+  - roxo: linha principal do Stockfish.
+- Ferramentas didáticas opcionais:
+  - regra do quadrado;
+  - oposição dos reis;
+  - casas bloqueadas;
+  - casas-chave.
+- Estatísticas predefinidas para alguns tipos de finais.
+
+## Requisitos
+
+- Python 3.10 ou superior.
+- Acesso à internet para consultar a API de tablebases do Lichess.
+- Stockfish instalado e disponível no `PATH` com o nome `stockfish`.
+
+Os arquivos `stockfish-ubuntu-x86-64-avx2` e
+`stockfish-windows-x86-64-avx2.exe` incluídos no projeto podem ser usados como
+executáveis locais. O aplicativo procura especificamente pelo comando
+`stockfish`; portanto, no Linux, o executável deve ser renomeado ou receber um
+link simbólico com esse nome, e no Windows deve ser adicionado ao `PATH` ou
+renomeado para `stockfish.exe`.
+
+## Instalação
+
+Clone o repositório e entre na pasta do projeto:
+
+```bash
+git clone <URL_DO_REPOSITORIO>
+cd chess-endgame-explainer
+```
+
+Crie e ative um ambiente virtual:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+```
+
+No Windows PowerShell:
+
+```powershell
+python -m venv .venv
+.venv\Scripts\Activate.ps1
+```
+
+Instale as dependências:
+
+```bash
+pip install -r requirements.txt
+```
+
+### Configurando o Stockfish no Linux
+
+Se for usar o binário incluído no projeto:
+
+```bash
+chmod +x stockfish-ubuntu-x86-64-avx2
+ln -s stockfish-ubuntu-x86-64-avx2 stockfish
+```
+
+Alternativamente, instale o Stockfish pelo gerenciador de pacotes da sua
+distribuição e confirme que o comando abaixo funciona:
+
+```bash
+stockfish
+```
+
+## Executando a aplicação
+
+Com o ambiente virtual ativado, execute:
+
+```bash
+streamlit run app.py
+```
+
+O Streamlit exibirá no terminal o endereço local da aplicação, normalmente:
+
+```text
+http://localhost:8501
+```
+
+## Como usar
+
+1. Abra a aplicação no navegador.
+2. Use os controles da barra lateral para ativar ou desativar setas, linha PV e
+   recursos didáticos.
+3. Edite o campo **Modificar posição (FEN)** para analisar outra posição.
+4. Clique em uma linha da tabela **Lances Disponíveis** para executar o lance.
+5. Use **Voltar Lance** e **Avançar Lance** para navegar pelo histórico.
+6. Use **Trocar a Vez (Brancas / Pretas)** quando precisar alternar o lado a
+   jogar sem modificar as peças.
+
+## Fontes de dados e limitações
+
+- As avaliações Syzygy são obtidas de
+  `http://tablebase.lichess.ovh/standard`, por meio de uma requisição HTTP.
+- A cobertura da tablebase depende das posições suportadas pelo serviço,
+  normalmente finais com até sete peças.
+- A linha PV depende do executável Stockfish local. Se ele não estiver
+  disponível, a aplicação informa o problema na barra lateral e as demais
+  funcionalidades continuam disponíveis.
+- As estatísticas exibidas para alguns tipos de finais são referências fixas
+  definidas no código; elas não são calculadas em tempo real.
+
+## Estrutura principal
+
+```text
+.
+├── app.py                              # Aplicação Streamlit
+├── requirements.txt                    # Dependências Python
+├── stockfish-ubuntu-x86-64-avx2       # Binário Stockfish para Linux
+└── stockfish-windows-x86-64-avx2.exe  # Binário Stockfish para Windows
+```
+
+## Desenvolvimento
+
+Para verificar a sintaxe do arquivo principal:
+
+```bash
+python3 -m py_compile app.py
+```
+
