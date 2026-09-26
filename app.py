@@ -392,6 +392,17 @@ col_board, col_metrics, col_moves = st.columns([2, 1, 1]) # Tabuleiro passa a oc
 with col_board:
     cor_vez = "⚪ Brancas" if board.turn == chess.WHITE else "⚫ Pretas"
     st.markdown(f"#### Tabuleiro (Vez das {cor_vez})")
+    st.markdown(
+        """
+        **Legenda das setas:** 
+        <span style="color:#3498db;">⬆ Azul</span>: lance legal ainda não avaliado pelo Syzygy ·
+        <span style="color:#27ae60;">⬆ Verde</span>: ganho ·
+        <span style="color:#c0392b;">⬆ Vermelha</span>: derrota ·
+        <span style="color:#7f8c8d;">⬆ Cinza</span>: empate ·
+        <span style="color:#9b59b6;">⬆ Roxa</span>: linha principal do Stockfish
+        """,
+        unsafe_allow_html=True,
+    )
     
     # Botões de navegação do histórico de lances
     c_prev, c_next = st.columns(2)
