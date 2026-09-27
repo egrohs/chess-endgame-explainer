@@ -552,10 +552,13 @@ with col_output:
         dtz_txt = str(abs(dtz_root)) if dtz_root is not None else "-"
         dtm_txt = str(abs(dtm_root)) if dtm_root is not None else "-"
 
-        c1, c2, c3 = st.columns(3)
+        mate_in_txt = str((abs(dtm_root) + 1) // 2) if dtm_root is not None else "-"
+
+        c1, c2, c3, c4 = st.columns([2, 1, 1, 1])
         c1.metric("Status", status_txt)
         c2.metric("DTZ", dtz_txt)
         c3.metric("DTM", dtm_txt)
+        c4.metric("MATE IN:", mate_in_txt)
 
     estatisticas_conhecidas = {
         "KPvK": {"win": "54.1%", "draw": "45.9%", "loss": "0.0%"},
