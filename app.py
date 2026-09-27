@@ -15,7 +15,10 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-st.title("♟️ Analisador de Finais Espaciais")
+st.title("♟️ Analisador de Finais")
+
+# Layout principal: controles, tabuleiro e resultados.
+col_controls, col_board, col_output = st.columns([1, 2.2, 1.5], gap="medium")
 
 # 1. Inicializa a posição (Exemplo: Final de Reis e Peão)
 if "fen" not in st.session_state:
@@ -266,12 +269,14 @@ def calcular_casas_chave(board):
 dados_syzygy = obter_dados_syzygy(board.fen())
 lances_avaliados = {m["uci"]: m for m in dados_syzygy["moves"]} if dados_syzygy else {}
 
-mostrar_setas = st.sidebar.toggle("Mostrar Setas de Lances", value=True)
-mostrar_pv = st.sidebar.toggle("Mostrar linha PV (Stockfish)", value=True)
-mostrar_regra_quadrado = st.sidebar.toggle("Mostrar Regra do Quadrado", value=False)
-mostrar_oposicao = st.sidebar.toggle("Mostrar Oposição dos Reis", value=False)
-mostrar_casas_bloqueadas = st.sidebar.toggle("Mostrar Casas Bloqueadas", value=False)
-mostrar_casas_chave = st.sidebar.toggle("Mostrar Casas Chave", value=False)
+with col_controls:
+    st.markdown("#### Controles")
+    mostrar_setas = st.toggle("Mostrar Setas de Lances", value=True)
+    mostrar_pv = st.toggle("Mostrar linha PV (Stockfish)", value=True)
+    mostrar_regra_quadrado = st.toggle("Mostrar Regra do Quadrado", value=False)
+    mostrar_oposicao = st.toggle("Mostrar Oposição dos Reis", value=False)
+    mostrar_casas_bloqueadas = st.toggle("Mostrar Casas Bloqueadas", value=False)
+    mostrar_casas_chave = st.toggle("Mostrar Casas Chave", value=False)
 
 setas_analiticas = []
 deslocamentos_setas = []
@@ -340,7 +345,7 @@ if mostrar_pv:
                     pv_labels.append((x, y + 1, texto_lance))
                 pv_string_display = " ".join(pv_lances)
     except FileNotFoundError:
-        st.sidebar.warning("⚠️ Executável 'stockfish' não encontrado. Certifique-se de que ele está instalado e no seu PATH.")
+        col_controls.warning("⚠️ Executável 'stockfish' não encontrado. Certifique-se de que ele está instalado e no seu PATH.")
 
 fill_dict = {}
 mensagens_quadrado = []
@@ -388,11 +393,15 @@ board_svg = chess.svg.board(
     board=board,
     arrows=setas_analiticas,
     fill=fill_dict,
-    size=550, # Aumentado para preencher a nova coluna expandida de 50%
+    size=700,
 )
 board_svg = board_svg.replace(
     'stroke-width="9.0" class="arrow"',
     'stroke-width="5" class="arrow"',
+)
+board_svg = board_svg.replace(
+    'width="700" height="700"',
+    'width="100%" height="100%"',
 )
 arrow_index = 0
 
@@ -456,64 +465,9 @@ svg_anotacoes = (
 )
 board_svg = board_svg.replace("</svg>", css_setas + svg_anotacoes + "</svg>")
 
-# 2. Configurando o Novo Layout Otimizado em 3 Colunas
-col_board, col_metrics, col_moves = st.columns([2, 1, 1]) # Tabuleiro passa a ocupar 50% da tela e o restante divide o restante
-
-with col_board:
+with col_controls:
     cor_vez = "⚪ Brancas" if board.turn == chess.WHITE else "⚫ Pretas"
-    st.markdown(f"#### Tabuleiro (Vez das {cor_vez})")
-    st.markdown(
-        """
-        **Legenda das setas:** 
-        <span style="color:#3498db;">⬆ Azul</span>: lance legal ainda não avaliado pelo Syzygy ·
-        <span style="color:#27ae60;">⬆ Verde</span>: ganho ·
-        <span style="color:#c0392b;">⬆ Vermelha</span>: derrota ·
-        <span style="color:#7f8c8d;">⬆ Cinza</span>: empate ·
-        <span style="color:#9b59b6;">⬆ Roxa</span>: linha principal do Stockfish
-        """,
-        unsafe_allow_html=True,
-    )
-    
-    # Botões de navegação do histórico de lances
-    c_prev, c_next = st.columns(2)
-    with c_prev:
-        if st.button("⬅️ Voltar Lance", use_container_width=True, disabled=st.session_state.history_idx == 0):
-            st.session_state.history_idx -= 1
-            st.session_state.fen = st.session_state.history[st.session_state.history_idx]
-            st.rerun()
-    with c_next:
-        if st.button("Avançar Lance ➡️", use_container_width=True, disabled=st.session_state.history_idx >= len(st.session_state.history) - 1):
-            st.session_state.history_idx += 1
-            st.session_state.fen = st.session_state.history[st.session_state.history_idx]
-            st.rerun()
-            
-    # Exibe a linha de melhores lances do Stockfish em formato texto
-    if pv_string_display:
-        st.info(f"**Linha de Melhores Lances (PV):** {pv_string_display}")
-
-    if mostrar_regra_quadrado and mensagens_quadrado:
-        for msg in mensagens_quadrado:
-            if "não alcança" in msg:
-                st.success(f"🏃 {msg}")
-            else:
-                st.warning(f"🚨 {msg}")
-
-    pv_overlay = "".join(
-        f'<span style="position:absolute; left:{x / 390 * 550}px; '
-        f'top:{y / 390 * 550}px; transform:translate(-50%, -50%); '
-        f'z-index:2; color:#9b59b6; font-size:15px; font-weight:bold; '
-        f'text-shadow:-1px -1px 0 white, 1px -1px 0 white, '
-        f'-1px 1px 0 white, 1px 1px 0 white; white-space:nowrap;">'
-        f'{texto}</span>'
-        for x, y, texto in pv_labels
-    )
-    st.markdown(
-        f'<div style="position:relative; width:550px; height:550px;">'
-        f'<div style="position:absolute; inset:0; z-index:1;">{board_svg}</div>'
-        f'<div style="position:absolute; inset:0; z-index:2; pointer-events:none;">'
-        f'{pv_overlay}</div></div>',
-        unsafe_allow_html=True,
-    )
+    st.markdown(f"#### Posição (Vez das {cor_vez})")
     nova_fen = st.text_input("Modificar posição (FEN):", st.session_state.fen)
     if nova_fen != st.session_state.fen:
         registrar_nova_fen(nova_fen)
@@ -522,11 +476,64 @@ with col_board:
     if st.button("Trocar a Vez (Brancas / Pretas)"):
         partes_fen = st.session_state.fen.split(" ")
         partes_fen[1] = "b" if partes_fen[1] == "w" else "w"
-        partes_fen[3] = "-"  # Remove alvo de en-passant para evitar FEN inválida
+        partes_fen[3] = "-"
         registrar_nova_fen(" ".join(partes_fen))
         st.rerun()
 
-with col_metrics:
+    # Botões de navegação do histórico de lances
+    c_prev, c_next = st.columns(2)
+    with c_prev:
+        if st.button("⬅️ Voltar Lance", disabled=st.session_state.history_idx == 0):
+            st.session_state.history_idx -= 1
+            st.session_state.fen = st.session_state.history[st.session_state.history_idx]
+            st.rerun()
+    with c_next:
+        if st.button("Avançar Lance ➡️", disabled=st.session_state.history_idx >= len(st.session_state.history) - 1):
+            st.session_state.history_idx += 1
+            st.session_state.fen = st.session_state.history[st.session_state.history_idx]
+            st.rerun()
+
+    if mostrar_regra_quadrado and mensagens_quadrado:
+        for msg in mensagens_quadrado:
+            st.success(f"🏃 {msg}" if "não alcança" in msg else f"🚨 {msg}")
+
+with col_board:
+    cor_vez = "⚪ Brancas" if board.turn == chess.WHITE else "⚫ Pretas"
+#    st.markdown(f"#### Tabuleiro (Vez das {cor_vez})")
+
+    pv_overlay = "".join(
+        f'<span style="position:absolute; left:{x / 390 * 100}%; '
+        f'top:{y / 390 * 100}%; transform:translate(-50%, -50%); '
+        f'z-index:2; color:#9b59b6; font-size:15px; font-weight:bold; '
+        f'text-shadow:-1px -1px 0 white, 1px -1px 0 white, '
+        f'-1px 1px 0 white, 1px 1px 0 white; white-space:nowrap;">'
+        f'{texto}</span>'
+        for x, y, texto in pv_labels
+    )
+    st.markdown(
+        f'<div style="position:relative; width:min(100%, calc(100vh - 150px)); '
+        f'aspect-ratio:1; margin:auto;">'
+        f'<div style="position:absolute; inset:0; z-index:1;">{board_svg}</div>'
+        f'<div style="position:absolute; inset:0; z-index:2; pointer-events:none;">'
+        f'{pv_overlay}</div></div>',
+        unsafe_allow_html=True,
+    )
+with col_output:
+    if pv_string_display:
+        st.info(f"**Linha de Melhores Lances (PV):** {pv_string_display}")
+
+    st.markdown("#### Legenda das setas")
+    st.markdown(
+        """
+        <span style="color:#3498db;">⬆ Azul</span>: lance legal não avaliado ·
+        <span style="color:#27ae60;">⬆ Verde</span>: ganho ·
+        <span style="color:#c0392b;">⬆ Vermelha</span>: derrota ·
+        <span style="color:#7f8c8d;">⬆ Cinza</span>: empate ·
+        <span style="color:#9b59b6;">⬆ Roxa</span>: linha principal
+        """,
+        unsafe_allow_html=True,
+    )
+
     st.markdown("#### Avaliação da Posição")
     if dados_syzygy:
         cat_root = dados_syzygy.get("category", "unknown")
@@ -572,17 +579,16 @@ with col_metrics:
     else:
         st.info("Estatísticas não mapeadas no código.")
 
-    st.info("💡 **Efeito Borboleta:** Mover o Rei para d1 altera o resultado de GANHO para EMPATE.")
+#    st.info("💡 **Efeito Borboleta:** Mover o Rei para d1 altera o resultado de GANHO para EMPATE.")
 
-with col_moves:
+with col_output:
     st.markdown("#### Lances Disponíveis (Clique na linha)")
     lances_dict = {board.san(m): m for m in board.legal_moves}
     
     # Tabela interativa com seleção de linha
     event = st.dataframe(
         dados_tabela, 
-        height=620, # Expandido para ocupar o máximo de espaço vertical na coluna de lances
-        use_container_width=True,
+        height=620,
         on_select="rerun",
         selection_mode="single-row"
     )
