@@ -12,6 +12,9 @@ Syzygy por meio da API pública do Lichess e uma linha de análise do Stockfish.
 - Seleção de um lance diretamente na tabela de lances legais.
 - Movimentação de peças no tabuleiro por arrastar e soltar, com escolha da peça
   em caso de promoção e validação dos lances legais.
+- Editor de posição com paleta de peças, remoção e movimentação, vez de jogar,
+  direitos de roque e en passant, iniciando pela posição analisada; botões
+  para limpar, restaurá-la ou gerar a posição inicial do jogo.
 - Desenho de setas amarelas com o botão direito do mouse, independentemente dos
   lances legais.
 - Avaliação de finais pela tablebase Syzygy, incluindo:
@@ -114,6 +117,14 @@ http://localhost:8501
    recursos didáticos. Ajuste o controle **Lances da linha PV** para escolher
    quantos lances da análise serão exibidos.
 3. Edite o campo **Modificar posição (FEN)** para analisar outra posição.
+   Para montar uma posição visualmente, clique em **Editar posição do tabuleiro**,
+   selecione ou arraste peças da paleta, escolha a vez de jogar e clique em
+   **Usar esta posição**. Você também pode ajustar roque e en passant.
+   O editor começa com a posição atual da análise. No painel à esquerda,
+   **Limpar tabuleiro** esvazia o rascunho e
+   **Gerar posição inicial do jogo** dispõe todas as peças como no
+   começo de uma partida e **Restaurar posição da análise** recupera a proposta
+   original. A análise só muda ao aplicar uma posição válida.
 4. Clique em uma linha da tabela **Lances Disponíveis** para executar o lance.
    Você também pode arrastar uma peça no tabuleiro até a casa de destino;
    promoções permitem escolher a peça. Para marcar uma ideia, arraste com o

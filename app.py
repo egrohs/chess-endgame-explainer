@@ -6,6 +6,7 @@ import requests
 import math
 import re
 from board_component import draggable_board
+from position_editor import board_from_draft, position_data, position_editor
 
 st.set_page_config(layout="wide")
 
@@ -35,6 +36,60 @@ def registrar_nova_fen(nova_fen):
     st.session_state.history_idx += 1
 
 board = chess.Board(st.session_state.fen)
+
+if not st.session_state.get("edit_mode", False):
+    with col_controls:
+        if st.button("Editar posição do tabuleiro"):
+            st.session_state.edit_mode = True
+            st.session_state.editor_initial_fen = board.fen()
+            st.session_state.editor_draft = position_data(board.fen())
+            st.session_state.editor_version = st.session_state.get("editor_version", 0) + 1
+            st.rerun()
+else:
+    with col_controls:
+        st.markdown("#### Editor de posição")
+        st.caption("O editor começa com a posição mostrada na análise. "
+                   "Selecione uma peça e clique numa casa, ou arraste uma peça da paleta. "
+                   "Arraste peças no tabuleiro para movê-las; clique com o botão direito para apagar.")
+        if st.button("Limpar tabuleiro"):
+            st.session_state.editor_draft = {
+                **st.session_state.editor_draft, "pieces": {}, "castling": "", "ep": "-"
+            }
+            st.rerun()
+        if st.button("Restaurar posição da análise"):
+            st.session_state.editor_draft = position_data(st.session_state.editor_initial_fen)
+            st.rerun()
+        if st.button("Gerar posição inicial do jogo"):
+            st.session_state.editor_draft = position_data(chess.STARTING_FEN)
+            st.rerun()
+        if st.button("Usar esta posição"):
+            try:
+                edited_board = board_from_draft(st.session_state.editor_draft)
+            except (KeyError, TypeError, ValueError):
+                st.error("A posição editada não possui uma FEN válida.")
+            else:
+                if not edited_board.is_valid():
+                    st.error("Posição inválida: verifique os dois reis, os peões e a vez de jogar.")
+                else:
+                    registrar_nova_fen(edited_board.fen())
+                    st.session_state.edit_mode = False
+                    st.session_state.pop("editor_draft", None)
+                    st.rerun()
+        if st.button("Cancelar edição"):
+            st.session_state.edit_mode = False
+            st.session_state.pop("editor_draft", None)
+            st.rerun()
+    with col_board:
+        position_editor(
+            st.session_state.editor_draft, key=f"position_editor_{st.session_state.editor_version}"
+        )
+    with col_output:
+        st.info("A posição analisada permanece intacta até você clicar em "
+                "**Usar esta posição**. Use **Limpar tabuleiro** para montar uma "
+                "nova posição ou **Gerar posição inicial do jogo** para começar "
+                "com todas as peças; **Restaurar posição da análise** recupera "
+                "a proposta original.")
+    st.stop()
 
 # Extração da lógica para funcionar de forma global antes do layout
 @st.cache_data
