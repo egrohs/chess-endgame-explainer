@@ -3,6 +3,8 @@ import chess.svg
 import chess.engine
 import streamlit as st
 import requests
+import math
+import re
 
 st.set_page_config(layout="wide")
 
@@ -272,6 +274,7 @@ mostrar_casas_bloqueadas = st.sidebar.toggle("Mostrar Casas Bloqueadas", value=F
 mostrar_casas_chave = st.sidebar.toggle("Mostrar Casas Chave", value=False)
 
 setas_analiticas = []
+deslocamentos_setas = []
 dados_tabela = []
 
 for move in board.legal_moves:
@@ -297,6 +300,9 @@ for move in board.legal_moves:
 
     if mostrar_setas:
         setas_analiticas.append(chess.svg.Arrow(move.from_square, move.to_square, color=cor))
+        deslocamentos_setas.append(
+            4 if cor != "#9b59b6aa" else 0
+        )
     dados_tabela.append({"Lance": lance_san, "Status": status, "DTZ": dtz, "DTM": dtm, "Ação": acao})
 
 svg_texts = []
@@ -319,6 +325,7 @@ if mostrar_pv:
                     pv_lances.append(texto_lance)
                     
                     setas_analiticas.append(chess.svg.Arrow(pv_move.from_square, pv_move.to_square, color="#9b59b6aa")) # Roxo translúcido
+                    deslocamentos_setas.append(0)
                     
                     count = square_labels_count.get(pv_move.to_square, 0)
                     square_labels_count[pv_move.to_square] = count + 1
@@ -384,6 +391,29 @@ board_svg = chess.svg.board(
 board_svg = board_svg.replace(
     'stroke-width="9.0" class="arrow"',
     'stroke-width="5" class="arrow"',
+)
+arrow_index = 0
+
+def deslocar_seta(match):
+    global arrow_index
+    offset = deslocamentos_setas[arrow_index]
+    arrow = setas_analiticas[arrow_index]
+    arrow_index += 1
+    if offset == 0:
+        return match.group(0)
+
+    dx = chess.square_file(arrow.head) - chess.square_file(arrow.tail)
+    dy = chess.square_rank(arrow.head) - chess.square_rank(arrow.tail)
+    comprimento = math.hypot(dx, dy) or 1
+    deslocamento_x = round(-dy / comprimento * offset, 2)
+    deslocamento_y = round(dx / comprimento * offset, 2)
+    transform = f'translate({deslocamento_x} {deslocamento_y})'
+    return f'<g transform="{transform}">{match.group(0)}</g>'
+
+board_svg = re.sub(
+    r'<line\b[^>]*class="arrow"\s*/>\s*<polygon\b[^>]*class="arrow"\s*/>',
+    deslocar_seta,
+    board_svg,
 )
 for arrow_color in ("#3498db", "#27ae60", "#c0392b", "#7f8c8d", "#9b59b6aa"):
     board_svg = board_svg.replace(
