@@ -273,6 +273,14 @@ with col_controls:
     st.markdown("#### Controles")
     mostrar_setas = st.toggle("Mostrar Setas de Lances", value=True)
     mostrar_pv = st.toggle("Mostrar linha PV (Stockfish)", value=True)
+    numero_lances_pv = st.slider(
+        "Lances da linha PV",
+        min_value=1,
+        max_value=20,
+        value=10,
+        disabled=not mostrar_pv,
+        help="Limita as setas roxas, a numeração no tabuleiro e a linha exibida aos lances disponíveis na análise.",
+    )
     mostrar_regra_quadrado = st.toggle("Mostrar Regra do Quadrado", value=False)
     mostrar_oposicao = st.toggle("Mostrar Oposição dos Reis", value=False)
     mostrar_casas_bloqueadas = st.toggle("Mostrar Casas Bloqueadas", value=False)
@@ -323,7 +331,7 @@ if mostrar_pv:
                 temp_board = board.copy()
                 pv_lances = []
                 square_labels_count = {}
-                for i, pv_move in enumerate(info["pv"][:10], start=1):
+                for i, pv_move in enumerate(info["pv"][:numero_lances_pv], start=1):
                     san_move = temp_board.san(pv_move)
                     temp_board.push(pv_move)
                     texto_lance = f"{i}. {san_move}"

@@ -16,6 +16,8 @@ Syzygy por meio da API pública do Lichess e uma linha de análise do Stockfish.
   - DTM (Distance to Mate), quando disponível;
   - classificação dos lances legais.
 - Linha principal de análise do Stockfish.
+- Controle da quantidade de lances da linha PV exibidos no tabuleiro e em texto
+  (até o limite disponível na análise).
 - Indicadores visuais no tabuleiro:
   - azul: lance legal ainda não avaliado pela tablebase;
   - verde: lance que mantém ou produz uma posição vencedora;
@@ -104,8 +106,9 @@ http://localhost:8501
 ## Como usar
 
 1. Abra a aplicação no navegador.
-2. Use os controles da barra lateral para ativar ou desativar setas, linha PV e
-   recursos didáticos.
+2. Use os controles à esquerda para ativar ou desativar setas, linha PV e
+   recursos didáticos. Ajuste o controle **Lances da linha PV** para escolher
+   quantos lances da análise serão exibidos.
 3. Edite o campo **Modificar posição (FEN)** para analisar outra posição.
 4. Clique em uma linha da tabela **Lances Disponíveis** para executar o lance.
 5. Use **Voltar Lance** e **Avançar Lance** para navegar pelo histórico.
@@ -141,4 +144,3 @@ Para verificar a sintaxe do arquivo principal:
 ```bash
 python3 -m py_compile app.py
 ```
-
