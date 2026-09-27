@@ -300,6 +300,7 @@ for move in board.legal_moves:
     dados_tabela.append({"Lance": lance_san, "Status": status, "DTZ": dtz, "DTM": dtm, "Ação": acao})
 
 svg_texts = []
+pv_labels = []
 pv_string_display = ""
 
 if mostrar_pv:
@@ -329,7 +330,7 @@ if mostrar_pv:
                     y = 15 + (7 - rank) * 45 + 22.5 + (count * 20)
                     
                     # Cria as tags SVG para o número e notação (texto roxo com contorno branco para leitura nítida)
-                    svg_texts.append(f'<text x="{x}" y="{y+1}" font-size="11" font-weight="bold" fill="#9b59b6" stroke="white" stroke-width="2" paint-order="stroke" text-anchor="middle" dominant-baseline="central" font-family="sans-serif">{texto_lance}</text>')
+                    pv_labels.append((x, y + 1, texto_lance))
                 pv_string_display = " ".join(pv_lances)
     except FileNotFoundError:
         st.sidebar.warning("⚠️ Executável 'stockfish' não encontrado. Certifique-se de que ele está instalado e no seu PATH.")
@@ -380,11 +381,48 @@ board_svg = chess.svg.board(
     fill=fill_dict,
     size=550, # Aumentado para preencher a nova coluna expandida de 50%
 )
+board_svg = board_svg.replace(
+    'stroke-width="9.0" class="arrow"',
+    'stroke-width="5" class="arrow"',
+)
+for arrow_color in ("#3498db", "#27ae60", "#c0392b", "#7f8c8d", "#9b59b6aa"):
+    board_svg = board_svg.replace(
+        f'fill="{arrow_color}" class="arrow"',
+        f'fill="{arrow_color}" class="arrow" '
+        'style="transform: scale(0.45); transform-origin: center; '
+        'transform-box: fill-box;"',
+    )
 
-# Injeta estilo CSS (para afinar as setas roxas) e as bolinhas antes de fechar o SVG gerado
-if svg_texts:
-    css_setas = '<style>path[stroke="#9b59b6aa"], line[stroke="#9b59b6aa"] { stroke-width: 5 !important; } polygon[fill="#9b59b6aa"] { transform: scale(0.45); transform-origin: center; transform-box: fill-box; }</style>'
-    board_svg = board_svg.replace('</svg>', css_setas + '\n' + '\n'.join(svg_texts) + '\n</svg>')
+# Injeta estilo CSS para controlar a largura das setas e adicionar as anotações.
+css_setas = """
+<style>
+path[stroke="#3498db"], line[stroke="#3498db"],
+path[stroke="#27ae60"], line[stroke="#27ae60"],
+path[stroke="#c0392b"], line[stroke="#c0392b"],
+path[stroke="#7f8c8d"], line[stroke="#7f8c8d"] {
+    stroke-width: 5 !important;
+}
+path[stroke="#9b59b6aa"], line[stroke="#9b59b6aa"] {
+    stroke-width: 5 !important;
+}
+text.pv-label {
+    display: inline !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+polygon[fill="#9b59b6aa"] {
+    transform: scale(0.45);
+    transform-origin: center;
+    transform-box: fill-box;
+}
+</style>
+"""
+svg_anotacoes = (
+    f'<g id="anotacoes" pointer-events="none">{"".join(svg_texts)}</g>'
+    if svg_texts
+    else ""
+)
+board_svg = board_svg.replace("</svg>", css_setas + svg_anotacoes + "</svg>")
 
 # 2. Configurando o Novo Layout Otimizado em 3 Colunas
 col_board, col_metrics, col_moves = st.columns([2, 1, 1]) # Tabuleiro passa a ocupar 50% da tela e o restante divide o restante
@@ -428,7 +466,20 @@ with col_board:
             else:
                 st.warning(f"🚨 {msg}")
 
-    st.write(board_svg, unsafe_allow_html=True)
+    pv_overlay = "".join(
+        f'<span style="position:absolute; left:{x / 390 * 550}px; '
+        f'top:{y / 390 * 550}px; transform:translate(-50%, -50%); '
+        f'z-index:2; color:#9b59b6; font-size:15px; font-weight:bold; '
+        f'text-shadow:-1px -1px 0 white, 1px -1px 0 white, '
+        f'-1px 1px 0 white, 1px 1px 0 white; white-space:nowrap;">'
+        f'{texto}</span>'
+        for x, y, texto in pv_labels
+    )
+    st.markdown(
+        f'<div style="position:relative; width:550px; height:550px;">'
+        f'{board_svg}{pv_overlay}</div>',
+        unsafe_allow_html=True,
+    )
     nova_fen = st.text_input("Modificar posição (FEN):", st.session_state.fen)
     if nova_fen != st.session_state.fen:
         registrar_nova_fen(nova_fen)
