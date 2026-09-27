@@ -14,6 +14,14 @@ _BOARD = st.components.v2.component(
     user-select: none;
 }
 .board-root > svg { display: block; width: 100%; height: 100%; }
+.board-root .drawing-layer { pointer-events: none; }
+.board-root .drawing-layer line {
+    stroke: #eab308;
+    stroke-width: 6;
+    stroke-linecap: round;
+}
+.board-root .drawing-layer polygon { fill: #eab308; }
+.board-root .drawing-layer .preview { opacity: 0.7; }
 .board-root .pv-label {
     position: absolute;
     z-index: 2;
@@ -41,7 +49,7 @@ _BOARD = st.components.v2.component(
 .board-root .feedback { position: absolute; bottom: 0; left: 0; }
 """,
     js="""
-export default function ({ data, parentElement, setTriggerValue }) {
+export default function ({ data, parentElement, setStateValue, setTriggerValue }) {
     const root = parentElement.querySelector(".board-root");
     root.replaceChildren();
     root.insertAdjacentHTML("afterbegin", data.svg);
@@ -63,7 +71,61 @@ export default function ({ data, parentElement, setTriggerValue }) {
     root.appendChild(feedback);
     const legal = new Set(data.legalMoves);
     let drag = null;
+    let drawing = null;
     let promotion = null;
+    let arrows = data.arrows;
+    const svgNS = "http://www.w3.org/2000/svg";
+    const drawingLayer = document.createElementNS(svgNS, "g");
+    drawingLayer.setAttribute("class", "drawing-layer");
+    svg.appendChild(drawingLayer);
+
+    function squareCenter(square) {
+        return {
+            x: 37.5 + 45 * "abcdefgh".indexOf(square[0]),
+            y: 37.5 + 45 * (8 - Number(square[1]))
+        };
+    }
+
+    function drawArrow(from, to, preview = false) {
+        const start = squareCenter(from);
+        const end = squareCenter(to);
+        const dx = end.x - start.x;
+        const dy = end.y - start.y;
+        const length = Math.hypot(dx, dy);
+        if (!length) return;
+        const ux = dx / length;
+        const uy = dy / length;
+        const tipX = end.x - ux * 8;
+        const tipY = end.y - uy * 8;
+        const baseX = tipX - ux * 14;
+        const baseY = tipY - uy * 14;
+        const group = document.createElementNS(svgNS, "g");
+        if (preview) group.setAttribute("class", "preview");
+        const shaft = document.createElementNS(svgNS, "line");
+        shaft.setAttribute("x1", start.x);
+        shaft.setAttribute("y1", start.y);
+        shaft.setAttribute("x2", baseX);
+        shaft.setAttribute("y2", baseY);
+        const head = document.createElementNS(svgNS, "polygon");
+        head.setAttribute("points",
+            `${tipX},${tipY} ${baseX - uy * 8},${baseY + ux * 8} ` +
+            `${baseX + uy * 8},${baseY - ux * 8}`);
+        group.append(shaft, head);
+        drawingLayer.appendChild(group);
+    }
+
+    function renderArrows(to = null) {
+        drawingLayer.replaceChildren();
+        for (const [from, end] of arrows) drawArrow(from, end);
+        if (drawing && to && to !== drawing.from) {
+            drawArrow(drawing.from, to, true);
+        }
+    }
+    renderArrows();
+
+    function saveArrows() {
+        setStateValue("arrows", { fen: data.fen, items: arrows });
+    }
 
     function squareAt(event) {
         const point = new DOMPoint(event.clientX, event.clientY)
@@ -116,7 +178,16 @@ export default function ({ data, parentElement, setTriggerValue }) {
         root.appendChild(promotion);
     }
 
+    svg.oncontextmenu = event => event.preventDefault();
     svg.onpointerdown = event => {
+        if (event.button === 2 && !drag && !promotion) {
+            const from = squareAt(event);
+            if (!from) return;
+            event.preventDefault();
+            svg.setPointerCapture(event.pointerId);
+            drawing = { from, pointerId: event.pointerId };
+            return;
+        }
         if (event.button !== 0 || drag || promotion) return;
         const from = squareAt(event);
         if (!from || ![...legal].some(move => move.startsWith(from))) return;
@@ -132,6 +203,10 @@ export default function ({ data, parentElement, setTriggerValue }) {
     };
 
     svg.onpointermove = event => {
+        if (drawing && drawing.pointerId === event.pointerId) {
+            renderArrows(squareAt(event));
+            return;
+        }
         if (!drag || drag.pointerId !== event.pointerId) return;
         const point = new DOMPoint(event.clientX, event.clientY)
             .matrixTransform(svg.getScreenCTM().inverse());
@@ -156,8 +231,32 @@ export default function ({ data, parentElement, setTriggerValue }) {
             submit(moves[0]);
         }
     }
-    svg.onpointerup = event => endDrag(event);
-    svg.onpointercancel = event => endDrag(event, true);
+    function endDrawing(event, cancelled = false) {
+        if (!drawing || drawing.pointerId !== event.pointerId) return;
+        const from = drawing.from;
+        const to = cancelled ? null : squareAt(event);
+        drawing = null;
+        if (to === from) {
+            arrows = [];
+            saveArrows();
+        } else if (to) {
+            const index = arrows.findIndex(([start, end]) =>
+                start === from && end === to);
+            arrows = index < 0
+                ? [...arrows, [from, to]]
+                : arrows.filter((_, i) => i !== index);
+            saveArrows();
+        }
+        renderArrows();
+    }
+    svg.onpointerup = event => {
+        endDrawing(event);
+        endDrag(event);
+    };
+    svg.onpointercancel = event => {
+        endDrawing(event, true);
+        endDrag(event, true);
+    };
 
     return () => {
         clearPromotion();
@@ -169,14 +268,26 @@ export default function ({ data, parentElement, setTriggerValue }) {
 
 
 def draggable_board(svg, labels, board, *, key="chess_board"):
+    annotations_key = f"{key}_annotations"
+    fen = board.fen()
+    saved = st.session_state.get(annotations_key)
+    if saved is None or saved["fen"] != fen:
+        saved = {"fen": fen, "items": []}
+        st.session_state[annotations_key] = saved
+
+    def save_arrows():
+        st.session_state[annotations_key] = st.session_state[key].arrows
+
     return _BOARD(
         key=key,
         data={
             "svg": svg,
             "labels": labels,
-            "fen": board.fen(),
+            "fen": fen,
             "turn": "w" if board.turn else "b",
             "legalMoves": [move.uci() for move in board.legal_moves],
+            "arrows": saved["items"],
         },
         on_move_change=lambda: None,
+        on_arrows_change=save_arrows,
     )

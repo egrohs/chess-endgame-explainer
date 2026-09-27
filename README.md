@@ -12,6 +12,8 @@ Syzygy por meio da API pública do Lichess e uma linha de análise do Stockfish.
 - Seleção de um lance diretamente na tabela de lances legais.
 - Movimentação de peças no tabuleiro por arrastar e soltar, com escolha da peça
   em caso de promoção e validação dos lances legais.
+- Desenho de setas amarelas com o botão direito do mouse, independentemente dos
+  lances legais.
 - Avaliação de finais pela tablebase Syzygy, incluindo:
   - resultado da posição;
   - DTZ (Distance to Zeroing Move);
@@ -114,7 +116,10 @@ http://localhost:8501
 3. Edite o campo **Modificar posição (FEN)** para analisar outra posição.
 4. Clique em uma linha da tabela **Lances Disponíveis** para executar o lance.
    Você também pode arrastar uma peça no tabuleiro até a casa de destino;
-   promoções permitem escolher a peça.
+   promoções permitem escolher a peça. Para marcar uma ideia, arraste com o
+   botão direito entre duas casas para desenhar uma seta amarela. Repita o
+   mesmo gesto para removê-la; clique com o botão direito em uma casa para
+   limpar todas as setas amarelas. Elas são removidas ao mudar de posição.
 5. Use **Voltar Lance** e **Avançar Lance** para navegar pelo histórico.
 6. Use **Trocar a Vez (Brancas / Pretas)** quando precisar alternar o lado a
    jogar sem modificar as peças.
