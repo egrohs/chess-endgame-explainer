@@ -382,6 +382,8 @@ if mostrar_casas_chave:
         stroke_color = "#333333" if p_color == chess.WHITE else "white"
         svg_texts.append(f'<circle cx="{x}" cy="{y}" r="14" fill="{fill_color}" stroke="{stroke_color}" stroke-width="1.5"/>')
 
+# O python-chess já gera o SVG na ordem tabuleiro, peças e setas.
+# Mantemos as anotações em uma camada posterior para que fiquem sempre visíveis.
 board_svg = chess.svg.board(
     board=board,
     arrows=setas_analiticas,
@@ -507,7 +509,9 @@ with col_board:
     )
     st.markdown(
         f'<div style="position:relative; width:550px; height:550px;">'
-        f'{board_svg}{pv_overlay}</div>',
+        f'<div style="position:absolute; inset:0; z-index:1;">{board_svg}</div>'
+        f'<div style="position:absolute; inset:0; z-index:2; pointer-events:none;">'
+        f'{pv_overlay}</div></div>',
         unsafe_allow_html=True,
     )
     nova_fen = st.text_input("Modificar posição (FEN):", st.session_state.fen)
