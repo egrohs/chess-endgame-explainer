@@ -10,6 +10,8 @@ Syzygy por meio da API pública do Lichess e uma linha de análise do Stockfish.
 - Inserção e alteração de posições usando FEN.
 - Navegação pelos lances com os botões de voltar e avançar.
 - Seleção de um lance diretamente na tabela de lances legais.
+- Movimentação de peças no tabuleiro por arrastar e soltar, com escolha da peça
+  em caso de promoção e validação dos lances legais.
 - Avaliação de finais pela tablebase Syzygy, incluindo:
   - resultado da posição;
   - DTZ (Distance to Zeroing Move);
@@ -111,6 +113,8 @@ http://localhost:8501
    quantos lances da análise serão exibidos.
 3. Edite o campo **Modificar posição (FEN)** para analisar outra posição.
 4. Clique em uma linha da tabela **Lances Disponíveis** para executar o lance.
+   Você também pode arrastar uma peça no tabuleiro até a casa de destino;
+   promoções permitem escolher a peça.
 5. Use **Voltar Lance** e **Avançar Lance** para navegar pelo histórico.
 6. Use **Trocar a Vez (Brancas / Pretas)** quando precisar alternar o lado a
    jogar sem modificar as peças.

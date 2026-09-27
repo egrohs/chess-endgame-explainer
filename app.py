@@ -5,6 +5,7 @@ import streamlit as st
 import requests
 import math
 import re
+from board_component import draggable_board
 
 st.set_page_config(layout="wide")
 
@@ -509,23 +510,25 @@ with col_board:
     cor_vez = "⚪ Brancas" if board.turn == chess.WHITE else "⚫ Pretas"
 #    st.markdown(f"#### Tabuleiro (Vez das {cor_vez})")
 
-    pv_overlay = "".join(
-        f'<span style="position:absolute; left:{x / 390 * 100}%; '
-        f'top:{y / 390 * 100}%; transform:translate(-50%, -50%); '
-        f'z-index:2; color:#9b59b6; font-size:15px; font-weight:bold; '
-        f'text-shadow:-1px -1px 0 white, 1px -1px 0 white, '
-        f'-1px 1px 0 white, 1px 1px 0 white; white-space:nowrap;">'
-        f'{texto}</span>'
-        for x, y, texto in pv_labels
-    )
-    st.markdown(
-        f'<div style="position:relative; width:min(100%, calc(100vh - 150px)); '
-        f'aspect-ratio:1; margin:auto;">'
-        f'<div style="position:absolute; inset:0; z-index:1;">{board_svg}</div>'
-        f'<div style="position:absolute; inset:0; z-index:2; pointer-events:none;">'
-        f'{pv_overlay}</div></div>',
-        unsafe_allow_html=True,
-    )
+    drag_result = draggable_board(board_svg, pv_labels, board)
+    if drag_result.move:
+        move_data = drag_result.move
+        if not isinstance(move_data, dict):
+            st.warning("Lance inválido recebido do tabuleiro.")
+        elif move_data.get("fen") != board.fen():
+            st.warning("A posição mudou; tente arrastar novamente.")
+        else:
+            try:
+                dragged_move = chess.Move.from_uci(move_data["uci"])
+            except (KeyError, TypeError, ValueError):
+                st.warning("Lance inválido recebido do tabuleiro.")
+            else:
+                if dragged_move in board.legal_moves:
+                    board.push(dragged_move)
+                    registrar_nova_fen(board.fen())
+                    st.rerun()
+                else:
+                    st.warning("Lance ilegal para esta posição.")
 with col_output:
     if pv_string_display:
         st.info(f"**Linha de Melhores Lances (PV):** {pv_string_display}")
