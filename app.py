@@ -38,7 +38,79 @@ def registrar_nova_fen(nova_fen):
     st.session_state.history.append(nova_fen)
     st.session_state.history_idx += 1
 
+def encontrar_executavel_stockfish():
+    configurado = os.environ.get("STOCKFISH_PATH")
+    if configurado:
+        executavel = shutil.which(configurado)
+        if executavel:
+            return executavel
+
+    nome_binario = (
+        "stockfish-windows-x86-64-avx2.exe"
+        if os.name == "nt"
+        else "stockfish-ubuntu-x86-64-avx2"
+    )
+    binario_local = Path(__file__).resolve().parent / nome_binario
+    if binario_local.is_file() and os.access(binario_local, os.X_OK):
+        return str(binario_local)
+
+    return shutil.which("stockfish")
+
 board = chess.Board(st.session_state.fen)
+
+if not st.session_state.get("edit_mode", False):
+    with col_controls:
+        if st.button("Editar posição do tabuleiro"):
+            st.session_state.edit_mode = True
+            st.session_state.editor_initial_fen = board.fen()
+            st.session_state.editor_draft = position_data(board.fen())
+            st.session_state.editor_version = st.session_state.get("editor_version", 0) + 1
+            st.rerun()
+else:
+    with col_controls:
+        st.markdown("#### Editor de posição")
+        st.caption("O editor começa com a posição mostrada na análise. "
+                   "Selecione uma peça e clique numa casa, ou arraste uma peça da paleta. "
+                   "Arraste peças no tabuleiro para movê-las; clique com o botão direito para apagar.")
+        if st.button("Limpar tabuleiro"):
+            st.session_state.editor_draft = {
+                **st.session_state.editor_draft, "pieces": {}, "castling": "", "ep": "-"
+            }
+            st.rerun()
+        if st.button("Restaurar posição da análise"):
+            st.session_state.editor_draft = position_data(st.session_state.editor_initial_fen)
+            st.rerun()
+        if st.button("Gerar posição inicial do jogo"):
+            st.session_state.editor_draft = position_data(chess.STARTING_FEN)
+            st.rerun()
+        if st.button("Usar esta posição"):
+            try:
+                edited_board = board_from_draft(st.session_state.editor_draft)
+            except (KeyError, TypeError, ValueError):
+                st.error("A posição editada não possui uma FEN válida.")
+            else:
+                if not edited_board.is_valid():
+                    st.error("Posição inválida: verifique os dois reis, os peões e a vez de jogar.")
+                else:
+                    registrar_nova_fen(edited_board.fen())
+                    st.session_state.edit_mode = False
+                    st.session_state.pop("editor_draft", None)
+                    st.rerun()
+        if st.button("Cancelar edição"):
+            st.session_state.edit_mode = False
+            st.session_state.pop("editor_draft", None)
+            st.rerun()
+    with col_board:
+        position_editor(
+            st.session_state.editor_draft, key=f"position_editor_{st.session_state.editor_version}"
+        )
+    with col_output:
+        st.info("A posição analisada permanece intacta até você clicar em "
+                "**Usar esta posição**. Use **Limpar tabuleiro** para montar uma "
+                "nova posição ou **Gerar posição inicial do jogo** para começar "
+                "com todas as peças; **Restaurar posição da análise** recupera "
+                "a proposta original.")
+    st.stop()
 
 # Extração da lógica para funcionar de forma global antes do layout
 @st.cache_data
@@ -328,37 +400,41 @@ pv_labels = []
 pv_string_display = ""
 
 if mostrar_pv:
-    try:
-        with chess.engine.SimpleEngine.popen_uci("stockfish") as engine:
-            # Aumentamos o limite para garantir uma linha (PV) longa. Antes o tempo curto cortava em poucos lances.
-            info = engine.analyse(board, chess.engine.Limit(depth=15, time=0.5))
-            if "pv" in info:
-                temp_board = board.copy()
-                pv_lances = []
-                square_labels_count = {}
-                for i, pv_move in enumerate(info["pv"][:numero_lances_pv], start=1):
-                    san_move = temp_board.san(pv_move)
-                    temp_board.push(pv_move)
-                    texto_lance = f"{i}. {san_move}"
-                    pv_lances.append(texto_lance)
-                    
-                    setas_analiticas.append(chess.svg.Arrow(pv_move.from_square, pv_move.to_square, color="#9b59b6aa")) # Roxo translúcido
-                    deslocamentos_setas.append(0)
-                    
-                    count = square_labels_count.get(pv_move.to_square, 0)
-                    square_labels_count[pv_move.to_square] = count + 1
-                    
-                    # Calcula as coordenadas cartesianas do centro da casa de destino (viewBox 390x390 do python-chess)
-                    file = chess.square_file(pv_move.to_square)
-                    rank = chess.square_rank(pv_move.to_square)
-                    x = 15 + file * 45 + 22.5
-                    y = 15 + (7 - rank) * 45 + 22.5 + (count * 20)
-                    
-                    # Cria as tags SVG para o número e notação (texto roxo com contorno branco para leitura nítida)
-                    pv_labels.append((x, y + 1, texto_lance))
-                pv_string_display = " ".join(pv_lances)
-    except FileNotFoundError:
-        col_controls.warning("⚠️ Executável 'stockfish' não encontrado. Certifique-se de que ele está instalado e no seu PATH.")
+    executavel_stockfish = encontrar_executavel_stockfish()
+    if executavel_stockfish:
+        try:
+            with chess.engine.SimpleEngine.popen_uci(executavel_stockfish) as engine:
+                # Aumentamos o limite para garantir uma linha (PV) longa. Antes o tempo curto cortava em poucos lances.
+                info = engine.analyse(board, chess.engine.Limit(depth=15, time=0.5))
+                if "pv" in info:
+                    temp_board = board.copy()
+                    pv_lances = []
+                    square_labels_count = {}
+                    for i, pv_move in enumerate(info["pv"][:numero_lances_pv], start=1):
+                        san_move = temp_board.san(pv_move)
+                        temp_board.push(pv_move)
+                        texto_lance = f"{i}. {san_move}"
+                        pv_lances.append(texto_lance)
+
+                        setas_analiticas.append(chess.svg.Arrow(pv_move.from_square, pv_move.to_square, color="#9b59b6aa"))
+                        deslocamentos_setas.append(0)
+
+                        count = square_labels_count.get(pv_move.to_square, 0)
+                        square_labels_count[pv_move.to_square] = count + 1
+
+                        file = chess.square_file(pv_move.to_square)
+                        rank = chess.square_rank(pv_move.to_square)
+                        x = 15 + file * 45 + 22.5
+                        y = 15 + (7 - rank) * 45 + 22.5 + (count * 20)
+                        pv_labels.append((x, y + 1, texto_lance))
+                    pv_string_display = " ".join(pv_lances)
+        except (FileNotFoundError, PermissionError) as erro:
+            col_controls.warning(f"Não foi possível iniciar o Stockfish: {erro}")
+    else:
+        col_controls.warning(
+            "Stockfish não encontrado. Mantenha o binário da sua plataforma na pasta do projeto, "
+            "instale-o no PATH ou defina STOCKFISH_PATH."
+        )
 
 fill_dict = {}
 mensagens_quadrado = []
@@ -511,26 +587,25 @@ with col_controls:
             st.success(f"🏃 {msg}" if "não alcança" in msg else f"🚨 {msg}")
 
 with col_board:
-    cor_vez = "⚪ Brancas" if board.turn == chess.WHITE else "⚫ Pretas"
-#    st.markdown(f"#### Tabuleiro (Vez das {cor_vez})")
-
-    pv_overlay = "".join(
-        f'<span style="position:absolute; left:{x / 390 * 100}%; '
-        f'top:{y / 390 * 100}%; transform:translate(-50%, -50%); '
-        f'z-index:2; color:#9b59b6; font-size:15px; font-weight:bold; '
-        f'text-shadow:-1px -1px 0 white, 1px -1px 0 white, '
-        f'-1px 1px 0 white, 1px 1px 0 white; white-space:nowrap;">'
-        f'{texto}</span>'
-        for x, y, texto in pv_labels
-    )
-    st.markdown(
-        f'<div style="position:relative; width:min(100%, calc(100vh - 150px)); '
-        f'aspect-ratio:1; margin:auto;">'
-        f'<div style="position:absolute; inset:0; z-index:1;">{board_svg}</div>'
-        f'<div style="position:absolute; inset:0; z-index:2; pointer-events:none;">'
-        f'{pv_overlay}</div></div>',
-        unsafe_allow_html=True,
-    )
+    drag_result = draggable_board(board_svg, pv_labels, board)
+    if drag_result.move:
+        move_data = drag_result.move
+        if not isinstance(move_data, dict):
+            st.warning("Lance inválido recebido do tabuleiro.")
+        elif move_data.get("fen") != board.fen():
+            st.warning("A posição mudou; tente arrastar novamente.")
+        else:
+            try:
+                dragged_move = chess.Move.from_uci(move_data["uci"])
+            except (KeyError, TypeError, ValueError):
+                st.warning("Lance inválido recebido do tabuleiro.")
+            else:
+                if dragged_move in board.legal_moves:
+                    board.push(dragged_move)
+                    registrar_nova_fen(board.fen())
+                    st.rerun()
+                else:
+                    st.warning("Lance ilegal para esta posição.")
 with col_output:
     if pv_string_display:
         st.info(f"**Linha de Melhores Lances (PV):** {pv_string_display}")
