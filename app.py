@@ -4,9 +4,12 @@ import chess.engine
 import streamlit as st
 import requests
 import math
+import os
 import re
 from board_component import draggable_board
 from position_editor import board_from_draft, position_data, position_editor
+import shutil
+from pathlib import Path
 
 st.set_page_config(layout="wide")
 
@@ -36,60 +39,6 @@ def registrar_nova_fen(nova_fen):
     st.session_state.history_idx += 1
 
 board = chess.Board(st.session_state.fen)
-
-if not st.session_state.get("edit_mode", False):
-    with col_controls:
-        if st.button("Editar posição do tabuleiro"):
-            st.session_state.edit_mode = True
-            st.session_state.editor_initial_fen = board.fen()
-            st.session_state.editor_draft = position_data(board.fen())
-            st.session_state.editor_version = st.session_state.get("editor_version", 0) + 1
-            st.rerun()
-else:
-    with col_controls:
-        st.markdown("#### Editor de posição")
-        st.caption("O editor começa com a posição mostrada na análise. "
-                   "Selecione uma peça e clique numa casa, ou arraste uma peça da paleta. "
-                   "Arraste peças no tabuleiro para movê-las; clique com o botão direito para apagar.")
-        if st.button("Limpar tabuleiro"):
-            st.session_state.editor_draft = {
-                **st.session_state.editor_draft, "pieces": {}, "castling": "", "ep": "-"
-            }
-            st.rerun()
-        if st.button("Restaurar posição da análise"):
-            st.session_state.editor_draft = position_data(st.session_state.editor_initial_fen)
-            st.rerun()
-        if st.button("Gerar posição inicial do jogo"):
-            st.session_state.editor_draft = position_data(chess.STARTING_FEN)
-            st.rerun()
-        if st.button("Usar esta posição"):
-            try:
-                edited_board = board_from_draft(st.session_state.editor_draft)
-            except (KeyError, TypeError, ValueError):
-                st.error("A posição editada não possui uma FEN válida.")
-            else:
-                if not edited_board.is_valid():
-                    st.error("Posição inválida: verifique os dois reis, os peões e a vez de jogar.")
-                else:
-                    registrar_nova_fen(edited_board.fen())
-                    st.session_state.edit_mode = False
-                    st.session_state.pop("editor_draft", None)
-                    st.rerun()
-        if st.button("Cancelar edição"):
-            st.session_state.edit_mode = False
-            st.session_state.pop("editor_draft", None)
-            st.rerun()
-    with col_board:
-        position_editor(
-            st.session_state.editor_draft, key=f"position_editor_{st.session_state.editor_version}"
-        )
-    with col_output:
-        st.info("A posição analisada permanece intacta até você clicar em "
-                "**Usar esta posição**. Use **Limpar tabuleiro** para montar uma "
-                "nova posição ou **Gerar posição inicial do jogo** para começar "
-                "com todas as peças; **Restaurar posição da análise** recupera "
-                "a proposta original.")
-    st.stop()
 
 # Extração da lógica para funcionar de forma global antes do layout
 @st.cache_data
@@ -565,25 +514,23 @@ with col_board:
     cor_vez = "⚪ Brancas" if board.turn == chess.WHITE else "⚫ Pretas"
 #    st.markdown(f"#### Tabuleiro (Vez das {cor_vez})")
 
-    drag_result = draggable_board(board_svg, pv_labels, board)
-    if drag_result.move:
-        move_data = drag_result.move
-        if not isinstance(move_data, dict):
-            st.warning("Lance inválido recebido do tabuleiro.")
-        elif move_data.get("fen") != board.fen():
-            st.warning("A posição mudou; tente arrastar novamente.")
-        else:
-            try:
-                dragged_move = chess.Move.from_uci(move_data["uci"])
-            except (KeyError, TypeError, ValueError):
-                st.warning("Lance inválido recebido do tabuleiro.")
-            else:
-                if dragged_move in board.legal_moves:
-                    board.push(dragged_move)
-                    registrar_nova_fen(board.fen())
-                    st.rerun()
-                else:
-                    st.warning("Lance ilegal para esta posição.")
+    pv_overlay = "".join(
+        f'<span style="position:absolute; left:{x / 390 * 100}%; '
+        f'top:{y / 390 * 100}%; transform:translate(-50%, -50%); '
+        f'z-index:2; color:#9b59b6; font-size:15px; font-weight:bold; '
+        f'text-shadow:-1px -1px 0 white, 1px -1px 0 white, '
+        f'-1px 1px 0 white, 1px 1px 0 white; white-space:nowrap;">'
+        f'{texto}</span>'
+        for x, y, texto in pv_labels
+    )
+    st.markdown(
+        f'<div style="position:relative; width:min(100%, calc(100vh - 150px)); '
+        f'aspect-ratio:1; margin:auto;">'
+        f'<div style="position:absolute; inset:0; z-index:1;">{board_svg}</div>'
+        f'<div style="position:absolute; inset:0; z-index:2; pointer-events:none;">'
+        f'{pv_overlay}</div></div>',
+        unsafe_allow_html=True,
+    )
 with col_output:
     if pv_string_display:
         st.info(f"**Linha de Melhores Lances (PV):** {pv_string_display}")
