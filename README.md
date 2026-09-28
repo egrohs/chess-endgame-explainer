@@ -35,14 +35,13 @@ Syzygy por meio da API pública do Lichess e uma linha de análise do Stockfish.
 
 - Python 3.10 ou superior.
 - Acesso à internet para consultar a API de tablebases do Lichess.
-- Stockfish instalado e disponível no `PATH` com o nome `stockfish`.
+- Stockfish compatível com a plataforma.
 
 Os arquivos `stockfish-ubuntu-x86-64-avx2` e
 `stockfish-windows-x86-64-avx2.exe` incluídos no projeto podem ser usados como
-executáveis locais. O aplicativo procura especificamente pelo comando
-`stockfish`; portanto, no Linux, o executável deve ser renomeado ou receber um
-link simbólico com esse nome, e no Windows deve ser adicionado ao `PATH` ou
-renomeado para `stockfish.exe`.
+executáveis locais e são detectados automaticamente. Também é possível definir
+a variável de ambiente `STOCKFISH_PATH` com o caminho de outro executável ou
+instalar o comando `stockfish` no `PATH`.
 
 ## Instalação
 
@@ -79,7 +78,6 @@ Se for usar o binário incluído no projeto:
 
 ```bash
 chmod +x stockfish-ubuntu-x86-64-avx2
-ln -s stockfish-ubuntu-x86-64-avx2 stockfish
 ```
 
 Alternativamente, instale o Stockfish pelo gerenciador de pacotes da sua

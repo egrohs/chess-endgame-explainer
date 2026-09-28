@@ -4,7 +4,10 @@ import chess.engine
 import streamlit as st
 import requests
 import math
+import os
 import re
+import shutil
+from pathlib import Path
 
 st.set_page_config(layout="wide")
 
@@ -32,6 +35,24 @@ def registrar_nova_fen(nova_fen):
     st.session_state.history = st.session_state.history[:st.session_state.history_idx + 1]
     st.session_state.history.append(nova_fen)
     st.session_state.history_idx += 1
+
+def encontrar_executavel_stockfish():
+    configurado = os.environ.get("STOCKFISH_PATH")
+    if configurado:
+        executavel = shutil.which(configurado)
+        if executavel:
+            return executavel
+
+    nome_binario = (
+        "stockfish-windows-x86-64-avx2.exe"
+        if os.name == "nt"
+        else "stockfish-ubuntu-x86-64-avx2"
+    )
+    binario_local = Path(__file__).resolve().parent / nome_binario
+    if binario_local.is_file() and os.access(binario_local, os.X_OK):
+        return str(binario_local)
+
+    return shutil.which("stockfish")
 
 board = chess.Board(st.session_state.fen)
 
@@ -323,37 +344,44 @@ pv_labels = []
 pv_string_display = ""
 
 if mostrar_pv:
-    try:
-        with chess.engine.SimpleEngine.popen_uci("stockfish") as engine:
-            # Aumentamos o limite para garantir uma linha (PV) longa. Antes o tempo curto cortava em poucos lances.
-            info = engine.analyse(board, chess.engine.Limit(depth=15, time=0.5))
-            if "pv" in info:
-                temp_board = board.copy()
-                pv_lances = []
-                square_labels_count = {}
-                for i, pv_move in enumerate(info["pv"][:numero_lances_pv], start=1):
-                    san_move = temp_board.san(pv_move)
-                    temp_board.push(pv_move)
-                    texto_lance = f"{i}. {san_move}"
-                    pv_lances.append(texto_lance)
-                    
-                    setas_analiticas.append(chess.svg.Arrow(pv_move.from_square, pv_move.to_square, color="#9b59b6aa")) # Roxo translúcido
-                    deslocamentos_setas.append(0)
-                    
-                    count = square_labels_count.get(pv_move.to_square, 0)
-                    square_labels_count[pv_move.to_square] = count + 1
-                    
-                    # Calcula as coordenadas cartesianas do centro da casa de destino (viewBox 390x390 do python-chess)
-                    file = chess.square_file(pv_move.to_square)
-                    rank = chess.square_rank(pv_move.to_square)
-                    x = 15 + file * 45 + 22.5
-                    y = 15 + (7 - rank) * 45 + 22.5 + (count * 20)
-                    
-                    # Cria as tags SVG para o número e notação (texto roxo com contorno branco para leitura nítida)
-                    pv_labels.append((x, y + 1, texto_lance))
-                pv_string_display = " ".join(pv_lances)
-    except FileNotFoundError:
-        col_controls.warning("⚠️ Executável 'stockfish' não encontrado. Certifique-se de que ele está instalado e no seu PATH.")
+    executavel_stockfish = encontrar_executavel_stockfish()
+    if executavel_stockfish:
+        try:
+            with chess.engine.SimpleEngine.popen_uci(executavel_stockfish) as engine:
+                # Aumentamos o limite para garantir uma linha (PV) longa. Antes o tempo curto cortava em poucos lances.
+                info = engine.analyse(board, chess.engine.Limit(depth=15, time=0.5))
+                if "pv" in info:
+                    temp_board = board.copy()
+                    pv_lances = []
+                    square_labels_count = {}
+                    for i, pv_move in enumerate(info["pv"][:numero_lances_pv], start=1):
+                        san_move = temp_board.san(pv_move)
+                        temp_board.push(pv_move)
+                        texto_lance = f"{i}. {san_move}"
+                        pv_lances.append(texto_lance)
+
+                        setas_analiticas.append(chess.svg.Arrow(pv_move.from_square, pv_move.to_square, color="#9b59b6aa")) # Roxo translúcido
+                        deslocamentos_setas.append(0)
+
+                        count = square_labels_count.get(pv_move.to_square, 0)
+                        square_labels_count[pv_move.to_square] = count + 1
+
+                        # Calcula as coordenadas cartesianas do centro da casa de destino (viewBox 390x390 do python-chess)
+                        file = chess.square_file(pv_move.to_square)
+                        rank = chess.square_rank(pv_move.to_square)
+                        x = 15 + file * 45 + 22.5
+                        y = 15 + (7 - rank) * 45 + 22.5 + (count * 20)
+
+                        # Cria as tags SVG para o número e notação (texto roxo com contorno branco para leitura nítida)
+                        pv_labels.append((x, y + 1, texto_lance))
+                    pv_string_display = " ".join(pv_lances)
+        except (FileNotFoundError, PermissionError) as erro:
+            col_controls.warning(f"Não foi possível iniciar o Stockfish: {erro}")
+    else:
+        col_controls.warning(
+            "Stockfish não encontrado. Mantenha o binário da sua plataforma na pasta do projeto, "
+            "instale-o no PATH ou defina STOCKFISH_PATH."
+        )
 
 fill_dict = {}
 mensagens_quadrado = []
