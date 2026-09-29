@@ -317,17 +317,19 @@ def calcular_casas_chave(board):
                 is_blocked = True
                 
             if is_blocked:
+                cor_casa = not color
+
                 # 3 horizontais logo atrás dele
                 r_atras = r - direcao
                 if 0 <= r_atras <= 7:
                     for df in [-1, 0, 1]:
                         if 0 <= f + df <= 7:
-                            casas_chave[chess.square(f + df, r_atras)] = color
+                            casas_chave[chess.square(f + df, r_atras)] = cor_casa
                             
                 # 3 casas horizontais de cada lado do peão
                 for df in [-3, -2, -1, 1, 2, 3]:
                     if 0 <= f + df <= 7:
-                        casas_chave[chess.square(f + df, r)] = color
+                        casas_chave[chess.square(f + df, r)] = cor_casa
             else:
                 # Peão avançando: Casas críticas
                 if color == chess.WHITE:
